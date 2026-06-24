@@ -66,6 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_usage_events_practice ON usage_events (practice_f
 CREATE INDEX IF NOT EXISTS idx_usage_events_location ON usage_events (location);
 CREATE INDEX IF NOT EXISTS idx_usage_events_access ON usage_events (access_point);
 CREATE INDEX IF NOT EXISTS idx_usage_events_designation ON usage_events (designation);
+CREATE INDEX IF NOT EXISTS idx_usage_events_team ON usage_events (team);
 CREATE INDEX IF NOT EXISTS idx_usage_events_utc_time ON usage_events (utc_time DESC);
 
 -- Row Level Security

@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="config.js"></script>
     <style>
@@ -774,6 +775,13 @@
             </div>
 
             <div class="filter-group">
+                <label for="filter-team">Team</label>
+                <select id="filter-team">
+                    <option value="All">All Teams</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
                 <label for="filter-location">Location</label>
                 <select id="filter-location">
                     <option value="All">All Locations</option>
@@ -863,11 +871,14 @@
 
             <div class="chart-card glass-panel">
                 <div class="chart-header">
-                    <h3>By Practice Area</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-practice', 'by_practice')">⬇ Save PNG</button>
+                    <div>
+                        <h3>By Team</h3>
+                        <div class="chart-subtitle">Top 7 teams by actions</div>
+                    </div>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-team', 'by_team')">⬇ Save PNG</button>
                 </div>
                 <div class="chart-body">
-                    <canvas id="chart-practice"></canvas>
+                    <canvas id="chart-team"></canvas>
                 </div>
             </div>
 
@@ -942,7 +953,8 @@
 
 <script>
 let supabaseClient = null;
-let activeFilters = { practice: "All", location: "All", access: "All", designation: "All" };
+let activeFilters = { practice: "All", team: "All", location: "All", access: "All", designation: "All" };
+let teamsByPractice = {};
 let charts = {};
 let filtersBusy = false;
 let lastChartBundle = null;
@@ -963,6 +975,7 @@ function getFilterParams() {
     const isFullRange = start === defaultDateRange.min && end === defaultDateRange.max;
     return {
         p_practice: activeFilters.practice,
+        p_team: activeFilters.team,
         p_location: activeFilters.location,
         p_access: activeFilters.access,
         p_designation: activeFilters.designation,
@@ -1146,10 +1159,35 @@ async function loadSyncInfo() {
 async function buildFilters() {
     const { data, error } = await supabaseClient.rpc("get_filter_options");
     if (error) throw error;
+    teamsByPractice = data.teams_by_practice || {};
     updateSelect('filter-practice', data.practices || []);
+    updateTeamSelect();
     updateSelect('filter-location', data.locations || []);
     updateSelect('filter-access', data.accesses || []);
     updateSelect('filter-designation', data.designations || []);
+}
+
+function getTeamOptionsForPractice(practice) {
+    if (practice === "All") {
+        const all = new Set();
+        Object.values(teamsByPractice).forEach(teams => {
+            (teams || []).forEach(t => all.add(t));
+        });
+        return Array.from(all).sort();
+    }
+    return teamsByPractice[practice] || [];
+}
+
+function updateTeamSelect() {
+    const practice = document.getElementById('filter-practice').value;
+    const teams = getTeamOptionsForPractice(practice);
+    const teamEl = document.getElementById('filter-team');
+    const prev = teamEl.value;
+    updateSelect('filter-team', teams);
+    if (prev !== "All" && !teams.includes(prev)) {
+        teamEl.value = "All";
+        activeFilters.team = "All";
+    }
 }
 
 function updateSelect(id, values) {
@@ -1166,8 +1204,10 @@ function updateSelect(id, values) {
 }
 
 function clearFilters() {
-    activeFilters = { practice: "All", location: "All", access: "All", designation: "All" };
+    activeFilters = { practice: "All", team: "All", location: "All", access: "All", designation: "All" };
     document.getElementById('filter-practice').value = "All";
+    updateTeamSelect();
+    document.getElementById('filter-team').value = "All";
     document.getElementById('filter-location').value = "All";
     document.getElementById('filter-access').value = "All";
     document.getElementById('filter-designation').value = "All";
@@ -1181,6 +1221,7 @@ async function applyFilters() {
     if (filtersBusy) return;
     filtersBusy = true;
     activeFilters.practice = document.getElementById('filter-practice').value;
+    activeFilters.team = document.getElementById('filter-team').value;
     activeFilters.location = document.getElementById('filter-location').value;
     activeFilters.access = document.getElementById('filter-access').value;
     activeFilters.designation = document.getElementById('filter-designation').value;
@@ -1217,7 +1258,23 @@ function renderMetrics(kpis) {
 }
 
 // ── CHARTS ──────────────────────────────────────────────────
+Chart.register(ChartDataLabels);
+
 const COLORS = ["#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#06b6d4","#84cc16","#d946ef","#f43f5e","#14b8a6"];
+
+function chartLabelColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#0f172a';
+}
+
+function formatChartValue(v) {
+    return Number(v).toLocaleString();
+}
+
+function pieLabelDisplay(ctx) {
+    const data = ctx.chart.data.datasets[0].data;
+    const total = data.reduce((a, b) => a + b, 0);
+    return total > 0 && (data[ctx.dataIndex] / total) >= 0.03;
+}
 
 function destroyChart(id) {
     if (charts[id]) charts[id].destroy();
@@ -1260,7 +1317,18 @@ function renderCharts(bundle) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    display: timeline.length <= 40,
+                    anchor: 'end',
+                    align: 'top',
+                    offset: 4,
+                    color: chartLabelColor(),
+                    font: { size: 11, weight: '600' },
+                    formatter: formatChartValue
+                }
+            },
             scales: {
                 x: { ticks: { maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 18 } },
                 y: { beginAtZero: true }
@@ -1276,7 +1344,22 @@ function renderCharts(bundle) {
                 labels: items.map(i => i.label),
                 datasets: [{ label: 'Count', data: items.map(i => i.value), backgroundColor: COLORS }]
             },
-            options: { responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? 'y' : 'x', plugins: { legend: { display: false } } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: horizontal ? 'y' : 'x',
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end',
+                        align: horizontal ? 'right' : 'top',
+                        offset: horizontal ? 4 : 2,
+                        color: chartLabelColor(),
+                        font: { size: 11, weight: '600' },
+                        formatter: formatChartValue
+                    }
+                }
+            }
         });
     }
 
@@ -1288,11 +1371,24 @@ function renderCharts(bundle) {
                 labels: items.map(i => i.label),
                 datasets: [{ data: items.map(i => i.value), backgroundColor: COLORS, borderWidth: 0 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, cutout: cutout || undefined, plugins: { legend: { position: 'bottom' } } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: cutout || undefined,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    datalabels: {
+                        display: pieLabelDisplay,
+                        color: '#fff',
+                        font: { size: 11, weight: '600' },
+                        formatter: formatChartValue
+                    }
+                }
+            }
         });
     }
 
-    barChart('chart-practice', bundle.practice || [], true);
+    barChart('chart-team', bundle.team || [], true);
     pieChart('chart-location', bundle.location || [], '65%');
     pieChart('chart-platform', bundle.platform || []);
     barChart('chart-designation', bundle.designation || [], false);
@@ -1360,7 +1456,11 @@ function exportTopUsersCsv() {
 document.getElementById("export-top-users-btn").addEventListener("click", exportTopUsersCsv);
 
 // Filter change handlers
-document.getElementById('filter-practice').addEventListener('change', () => applyFilters());
+document.getElementById('filter-practice').addEventListener('change', () => {
+    updateTeamSelect();
+    applyFilters();
+});
+document.getElementById('filter-team').addEventListener('change', () => applyFilters());
 document.getElementById('filter-location').addEventListener('change', () => applyFilters());
 document.getElementById('filter-access').addEventListener('change', () => applyFilters());
 document.getElementById('filter-designation').addEventListener('change', () => applyFilters());
