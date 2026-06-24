@@ -156,16 +156,19 @@
 
         .filter-date {
             width: 100%;
-            padding: 10px 12px;
+            max-width: 100%;
+            min-width: 0;
+            padding: 8px 10px;
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             color: var(--text-primary);
             font-family: inherit;
-            font-size: 0.95rem;
+            font-size: 0.82rem;
             outline: none;
             transition: all 0.3s ease;
             cursor: pointer;
+            box-sizing: border-box;
         }
 
         .filter-date:hover, .filter-date:focus {
@@ -173,9 +176,16 @@
         }
 
         .date-range-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            flex-direction: column;
             gap: 10px;
+        }
+
+        .date-field label {
+            display: block;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
         }
 
         .btn-primary {
@@ -327,10 +337,38 @@
             gap: 16px;
         }
 
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
         .chart-header h3 {
             font-size: 1.1rem;
             font-weight: 600;
             color: var(--text-primary);
+            margin: 0;
+        }
+
+        .btn-chart-png {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .btn-chart-png:hover {
+            border-color: var(--accent-glow);
+            color: var(--accent-glow);
         }
 
         .chart-body {
@@ -698,12 +736,12 @@
             <div class="filter-group">
                 <label>Date Range</label>
                 <div class="date-range-row">
-                    <div>
-                        <label for="filter-start-date" style="font-size: 0.75rem; margin-bottom: 4px;">Start</label>
+                    <div class="date-field">
+                        <label for="filter-start-date">Start</label>
                         <input type="date" id="filter-start-date" class="filter-date">
                     </div>
-                    <div>
-                        <label for="filter-end-date" style="font-size: 0.75rem; margin-bottom: 4px;">End</label>
+                    <div class="date-field">
+                        <label for="filter-end-date">End</label>
                         <input type="date" id="filter-end-date" class="filter-date">
                     </div>
                 </div>
@@ -794,6 +832,7 @@
             <div class="chart-card glass-panel span-2">
                 <div class="chart-header">
                     <h3>Usage Trend</h3>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-hour', 'usage_trend')">Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-hour"></canvas>
@@ -803,6 +842,7 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Practice Area</h3>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-practice', 'by_practice')">Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-practice"></canvas>
@@ -812,6 +852,7 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Location</h3>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-location', 'by_location')">Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-location"></canvas>
@@ -821,6 +862,7 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Platform</h3>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-platform', 'by_platform')">Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-platform"></canvas>
@@ -830,6 +872,7 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Designation</h3>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-designation', 'by_designation')">Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-designation"></canvas>
@@ -1209,6 +1252,18 @@ const COLORS = ["#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#06b6d4","#84
 
 function destroyChart(id) {
     if (charts[id]) charts[id].destroy();
+}
+
+function saveChartPng(chartId, filename) {
+    const chart = charts[chartId];
+    if (!chart) {
+        showDashboardError("Chart not ready yet. Wait for data to load.");
+        return;
+    }
+    const link = document.createElement("a");
+    link.href = chart.toBase64Image("image/png", 1);
+    link.download = `${filename}_${new Date().toISOString().slice(0, 10)}.png`;
+    link.click();
 }
 
 function renderCharts(bundle) {
