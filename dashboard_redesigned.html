@@ -154,6 +154,30 @@
             border-color: var(--accent-glow);
         }
 
+        .filter-date {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .filter-date:hover, .filter-date:focus {
+            border-color: var(--accent-glow);
+        }
+
+        .date-range-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
         .btn-primary {
             background: var(--accent-gradient);
             color: white;
@@ -670,6 +694,20 @@
 
         <div class="filter-section">
             <h3>Filters</h3>
+
+            <div class="filter-group">
+                <label>Date Range</label>
+                <div class="date-range-row">
+                    <div>
+                        <label for="filter-start-date" style="font-size: 0.75rem; margin-bottom: 4px;">Start</label>
+                        <input type="date" id="filter-start-date" class="filter-date">
+                    </div>
+                    <div>
+                        <label for="filter-end-date" style="font-size: 0.75rem; margin-bottom: 4px;">End</label>
+                        <input type="date" id="filter-end-date" class="filter-date">
+                    </div>
+                </div>
+            </div>
             
             <div class="filter-group">
                 <label for="filter-practice">Practice Area</label>
@@ -884,6 +922,7 @@ let filtersBusy = false;
 let lastChartBundle = null;
 let allTopUsers = [];
 let topUsersLimit = 10;
+let defaultDateRange = { min: null, max: null };
 
 function showDashboardError(msg) {
     const el = document.getElementById("dashboard-error");
@@ -893,12 +932,33 @@ function showDashboardError(msg) {
 }
 
 function getFilterParams() {
+    const start = document.getElementById('filter-start-date').value || null;
+    const end = document.getElementById('filter-end-date').value || null;
+    const isFullRange = start === defaultDateRange.min && end === defaultDateRange.max;
     return {
         p_practice: activeFilters.practice,
         p_location: activeFilters.location,
         p_access: activeFilters.access,
-        p_designation: activeFilters.designation
+        p_designation: activeFilters.designation,
+        p_start_date: isFullRange ? null : start,
+        p_end_date: isFullRange ? null : end
     };
+}
+
+function setDateRange(min, max) {
+    defaultDateRange = { min, max };
+    const startEl = document.getElementById('filter-start-date');
+    const endEl = document.getElementById('filter-end-date');
+    if (min) {
+        startEl.min = min;
+        startEl.max = max;
+        startEl.value = min;
+    }
+    if (max) {
+        endEl.min = min;
+        endEl.max = max;
+        endEl.value = max;
+    }
 }
 
 function setLoading(isLoading) {
@@ -1047,10 +1107,14 @@ async function loadDashboard() {
 async function loadSyncInfo() {
     const { data, error } = await supabaseClient.rpc("get_sync_info");
     if (error) throw error;
+    const minDate = data?.min_date || null;
     const maxDate = data?.max_date || "—";
     const rowCount = data?.row_count ? Number(data.row_count).toLocaleString() : "—";
     document.getElementById("sync-banner").textContent =
         `Data through: ${maxDate} · ${rowCount} records`;
+    if (minDate && maxDate && maxDate !== "—") {
+        setDateRange(minDate, maxDate);
+    }
 }
 
 async function buildFilters() {
@@ -1081,6 +1145,9 @@ function clearFilters() {
     document.getElementById('filter-location').value = "All";
     document.getElementById('filter-access').value = "All";
     document.getElementById('filter-designation').value = "All";
+    if (defaultDateRange.min && defaultDateRange.max) {
+        setDateRange(defaultDateRange.min, defaultDateRange.max);
+    }
     tablePage = 1;
     applyFilters();
 }
@@ -1348,6 +1415,24 @@ document.getElementById('filter-practice').addEventListener('change', () => { ta
 document.getElementById('filter-location').addEventListener('change', () => { tablePage = 1; applyFilters(); });
 document.getElementById('filter-access').addEventListener('change', () => { tablePage = 1; applyFilters(); });
 document.getElementById('filter-designation').addEventListener('change', () => { tablePage = 1; applyFilters(); });
+document.getElementById('filter-start-date').addEventListener('change', () => {
+    const start = document.getElementById('filter-start-date').value;
+    const end = document.getElementById('filter-end-date').value;
+    if (start && end && start > end) {
+        document.getElementById('filter-end-date').value = start;
+    }
+    tablePage = 1;
+    applyFilters();
+});
+document.getElementById('filter-end-date').addEventListener('change', () => {
+    const start = document.getElementById('filter-start-date').value;
+    const end = document.getElementById('filter-end-date').value;
+    if (start && end && end < start) {
+        document.getElementById('filter-start-date').value = end;
+    }
+    tablePage = 1;
+    applyFilters();
+});
 
 // ── INIT ────────────────────────────────────────────────────
 applyTheme('light');
