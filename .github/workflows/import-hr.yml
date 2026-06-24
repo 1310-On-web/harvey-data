@@ -1,0 +1,18 @@
+name: Import HR Excel to Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      hr_file_base64_note:
+        description: "Run locally with scripts/import_hr_excel.py instead (Excel cannot be committed). This workflow is a placeholder for manual trigger documentation."
+        required: false
+
+jobs:
+  note:
+    runs-on: ubuntu-latest
+    steps:
+      - name: HR import instructions
+        run: |
+          echo "HR Excel import must be run locally:"
+          echo "  py -3 scripts/import_hr_excel.py --hr-file 'Active List_15 June 26.xlsx'"
+          echo "Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are in your .env file."

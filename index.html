@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khaitan & Co — Usage Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="config.js"></script>
+    <style>
+        :root {
+            --bg-dark: #f1f5f9;
+            --bg-panel: rgba(255, 255, 255, 0.85);
+            --bg-input: rgba(255, 255, 255, 0.95);
+            --border-color: rgba(15, 23, 42, 0.08);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --accent-glow: #3b82f6;
+            --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --hover-bg: rgba(15, 23, 42, 0.05);
+            --bg-radial-1: rgba(59, 130, 246, 0.10);
+            --bg-radial-2: rgba(139, 92, 246, 0.10);
+            --row-stripe: rgba(15, 23, 42, 0.025);
+            --shadow-color: rgba(15, 23, 42, 0.08);
+            --color-scheme: light;
+        }
+
+        [data-theme="dark"] {
+            --bg-dark: #0f172a;
+            --bg-panel: rgba(30, 41, 59, 0.7);
+            --bg-input: rgba(15, 23, 42, 0.6);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-glow: #3b82f6;
+            --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --hover-bg: rgba(255, 255, 255, 0.05);
+            --bg-radial-1: rgba(59, 130, 246, 0.15);
+            --bg-radial-2: rgba(139, 92, 246, 0.15);
+            --row-stripe: rgba(255, 255, 255, 0.03);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --color-scheme: dark;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 15% 50%, var(--bg-radial-1) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, var(--bg-radial-2) 0%, transparent 50%);
+            background-attachment: fixed;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px var(--shadow-color);
+            transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .sidebar {
+            width: 280px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-orb {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .brand h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .filter-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .filter-section h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        select:hover, select:focus {
+            border-color: var(--accent-glow);
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-export {
+            background: #22d3a5;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-export:hover {
+            background: #1fb393;
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 32px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            overflow-y: auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .topbar h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .theme-toggle {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            margin-top: 6px;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .kpi-card {
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .kpi-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .kpi-data p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .kpi-data h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .span-2 {
+            grid-column: span 2;
+        }
+
+        .chart-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chart-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-body {
+            flex: 1;
+            position: relative;
+            min-height: 300px;
+        }
+
+        .table-wrapper {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .table-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .table-search-export {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .table-search {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 12px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .table-search:focus {
+            border-color: var(--accent-glow);
+        }
+
+        .table-scroll {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        th, td {
+            padding: 10px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            color: var(--text-primary);
+        }
+
+        tbody tr:nth-child(even) {
+            background: var(--row-stripe);
+        }
+
+        tbody tr:hover {
+            background: var(--hover-bg);
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            align-items: center;
+            margin-top: 16px;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            border-color: var(--accent-glow);
+            color: var(--accent-glow);
+        }
+
+        .page-btn.active {
+            background: var(--accent-gradient);
+            color: white;
+            border-color: var(--accent-glow);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-glow);
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--accent-glow);
+        }
+
+        .login-message {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            min-height: 1.2em;
+        }
+
+        .sync-banner {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(34, 211, 165, 0.12);
+            color: #0f766e;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        [data-theme="dark"] .sync-banner {
+            color: #5eead4;
+        }
+
+        .btn-logout {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .btn-logout:hover {
+            border-color: var(--accent-glow);
+            color: var(--text-primary);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            color: white;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
+            .main-content {
+                padding: 24px;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            .span-2 {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                padding: 16px;
+            }
+            .main-content {
+                padding: 16px;
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="position: fixed; inset: 0; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 32px;">
+    <div class="glass-panel" style="width: 420px; padding: 48px 40px; text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 20px;">🔐</div>
+        <div style="font-size: 20px; font-weight: 600; margin-bottom: 6px;">Khaitan Usage Analytics</div>
+        <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 32px;">Sign in with your invited email</div>
+
+        <input type="email" id="login-email" class="login-input" placeholder="you@khaitanco.com" autocomplete="email">
+        <button id="login-btn" class="btn-primary" style="width: 100%;">Send Magic Link</button>
+        <div id="login-message" class="login-message"></div>
+
+        <div style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 16px;">
+            Data is updated once daily through yesterday.<br>Access is restricted to invited users.
+        </div>
+    </div>
+</div>
+
+<div id="loading-overlay" class="loading-overlay">Loading dashboard…</div>
+
+<!-- MAIN DASHBOARD -->
+<div id="dashboard" style="display: none;" class="dashboard-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="logo-orb"></div>
+            <h2>Khaitan & Co</h2>
+        </div>
+
+        <div class="filter-section">
+            <h3>Filters</h3>
+            
+            <div class="filter-group">
+                <label for="filter-practice">Practice Area</label>
+                <select id="filter-practice" onchange="applyFilters()">
+                    <option value="All">All Practice Areas</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filter-location">Location</label>
+                <select id="filter-location" onchange="applyFilters()">
+                    <option value="All">All Locations</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filter-access">Platform</label>
+                <select id="filter-access" onchange="applyFilters()">
+                    <option value="All">All Platforms</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filter-designation">Designation</label>
+                <select id="filter-designation" onchange="applyFilters()">
+                    <option value="All">All Designations</option>
+                </select>
+            </div>
+
+            <button class="btn-primary" onclick="clearFilters()" style="width: 100%;">Clear Filters</button>
+        </div>
+
+        <div style="margin-top: auto; padding-top: 24px; border-top: 1px solid var(--border-color);">
+            <button class="theme-toggle" id="theme-toggle" type="button">
+                <span id="theme-icon">🌙</span>
+                <span id="theme-label">Dark mode</span>
+            </button>
+            <button class="btn-logout" id="logout-btn" type="button">Sign out</button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <h1>Usage Analytics</h1>
+                <p class="subtitle">Harvey usage insights for your team</p>
+                <div class="sync-banner" id="sync-banner">Data through: —</div>
+            </div>
+            <button class="theme-toggle" id="theme-toggle-alt" type="button">
+                <span id="theme-icon-alt">🌙</span>
+                <span id="theme-label-alt">Dark mode</span>
+            </button>
+        </header>
+
+        <!-- KPIs -->
+        <section class="kpi-grid">
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">👥</div>
+                <div class="kpi-data">
+                    <p>Active Users</p>
+                    <h3 id="m-users">—</h3>
+                </div>
+            </div>
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">📊</div>
+                <div class="kpi-data">
+                    <p>Total Actions</p>
+                    <h3 id="m-actions">—</h3>
+                </div>
+            </div>
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">🏢</div>
+                <div class="kpi-data">
+                    <p>Practice Areas</p>
+                    <h3 id="m-teams">—</h3>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHARTS -->
+        <section class="charts-grid">
+            <div class="chart-card glass-panel span-2">
+                <div class="chart-header">
+                    <h3>Usage Trend</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-hour"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <h3>By Practice Area</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-practice"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <h3>By Location</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-location"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <h3>By Platform</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-platform"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <h3>By Designation</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-designation"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- TABLE -->
+        <section class="glass-panel table-wrapper">
+            <div class="table-header-top">
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px;">Detailed Records</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;" id="table-count">— records</p>
+                </div>
+                <div class="table-search-export">
+                    <input type="text" class="table-search" id="table-search" placeholder="Search user, team, product…">
+                    <button id="export-btn" class="btn-export">📥 Export CSV</button>
+                </div>
+            </div>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('utc_time')">Time</th>
+                            <th onclick="sortTable('user')">User</th>
+                            <th onclick="sortTable('Workforce Name')">Name</th>
+                            <th onclick="sortTable('Practice/ Function')">Practice</th>
+                            <th onclick="sortTable('Location')">Location</th>
+                            <th onclick="sortTable('access_point')">Platform</th>
+                            <th onclick="sortTable('product_surface_area')">Product</th>
+                            <th onclick="sortTable('file_count')">Files</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </section>
+
+        <!-- TOP USERS -->
+        <section class="glass-panel table-wrapper">
+            <div class="table-header-top">
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px;">Top Users</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;" id="top-users-count">— users</p>
+                </div>
+                <div class="table-search-export">
+                    <button id="export-top-users-btn" class="btn-export">📥 Export CSV</button>
+                </div>
+            </div>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Rank</th>
+                            <th>User Email</th>
+                            <th>Workforce Name</th>
+                            <th>Designation</th>
+                            <th>Location</th>
+                            <th>Actions</th>
+                            <th>Files</th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-users-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+let supabaseClient = null;
+let activeFilters = { practice: "All", location: "All", access: "All", designation: "All" };
+let tablePage = 1;
+const PAGE_SIZE = 20;
+let currentSortKey = "utc_time";
+let currentSortAsc = false;
+let charts = {};
+let tableTotal = 0;
+let searchDebounce = null;
+
+function getFilterParams() {
+    return {
+        p_practice: activeFilters.practice,
+        p_location: activeFilters.location,
+        p_access: activeFilters.access,
+        p_designation: activeFilters.designation
+    };
+}
+
+function setLoading(isLoading) {
+    document.getElementById("loading-overlay").style.display = isLoading ? "flex" : "none";
+}
+
+function initSupabase() {
+    const cfg = window.SUPABASE_CONFIG;
+    if (!cfg || !cfg.url || !cfg.anonKey || cfg.url.includes("YOUR_PROJECT")) {
+        document.getElementById("login-message").textContent =
+            "Missing config.js — copy config.js.example to config.js and add your Supabase URL and anon key.";
+        return null;
+    }
+    return window.supabase.createClient(cfg.url, cfg.anonKey);
+}
+
+async function checkSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        showDashboard();
+        await loadDashboard();
+    }
+}
+
+document.getElementById("login-btn").addEventListener("click", async () => {
+    const email = document.getElementById("login-email").value.trim();
+    const msg = document.getElementById("login-message");
+    if (!email) {
+        msg.textContent = "Please enter your email.";
+        return;
+    }
+    msg.textContent = "Sending magic link…";
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await supabaseClient.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo }
+    });
+    msg.textContent = error ? error.message : "Check your email for the sign-in link.";
+});
+
+document.getElementById("logout-btn").addEventListener("click", async () => {
+    await supabaseClient.auth.signOut();
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("login-screen").style.display = "flex";
+});
+
+function showDashboard() {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("dashboard").style.display = "flex";
+}
+
+// ── THEME ──────────────────────────────────────────────────
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('theme-icon').textContent = theme === 'dark' ? '☀️' : '🌙';
+    document.getElementById('theme-label').textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+    if (document.getElementById('theme-icon-alt')) {
+        document.getElementById('theme-icon-alt').textContent = theme === 'dark' ? '☀️' : '🌙';
+        document.getElementById('theme-label-alt').textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+    }
+    Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary');
+    Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color');
+    if (Object.keys(charts).length > 0) applyFilters();
+}
+
+document.getElementById('theme-toggle').addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+if (document.getElementById('theme-toggle-alt')) {
+    document.getElementById('theme-toggle-alt').addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+}
+
+// ── DATA LOADING ────────────────────────────────────────────
+async function loadDashboard() {
+    setLoading(true);
+    try {
+        await Promise.all([buildFilters(), loadSyncInfo()]);
+        await applyFilters();
+    } catch (err) {
+        console.error(err);
+        alert("Failed to load dashboard: " + (err.message || err));
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function loadSyncInfo() {
+    const { data, error } = await supabaseClient.rpc("get_sync_info");
+    if (error) throw error;
+    const maxDate = data?.max_date || "—";
+    const rowCount = data?.row_count ? Number(data.row_count).toLocaleString() : "—";
+    document.getElementById("sync-banner").textContent =
+        `Data through: ${maxDate} · ${rowCount} records`;
+}
+
+async function buildFilters() {
+    const { data, error } = await supabaseClient.rpc("get_filter_options");
+    if (error) throw error;
+    updateSelect('filter-practice', data.practices || []);
+    updateSelect('filter-location', data.locations || []);
+    updateSelect('filter-access', data.accesses || []);
+    updateSelect('filter-designation', data.designations || []);
+}
+
+function updateSelect(id, values) {
+    const select = document.getElementById(id);
+    Array.from(select.options).forEach((opt, i) => {
+        if (i > 0) opt.remove();
+    });
+    values.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        select.appendChild(opt);
+    });
+}
+
+function clearFilters() {
+    activeFilters = { practice: "All", location: "All", access: "All", designation: "All" };
+    document.getElementById('filter-practice').value = "All";
+    document.getElementById('filter-location').value = "All";
+    document.getElementById('filter-access').value = "All";
+    document.getElementById('filter-designation').value = "All";
+    tablePage = 1;
+    applyFilters();
+}
+
+async function applyFilters() {
+    activeFilters.practice = document.getElementById('filter-practice').value;
+    activeFilters.location = document.getElementById('filter-location').value;
+    activeFilters.access = document.getElementById('filter-access').value;
+    activeFilters.designation = document.getElementById('filter-designation').value;
+
+    setLoading(true);
+    try {
+        const params = getFilterParams();
+        const [bundleResult, pageResult, topUsersResult] = await Promise.all([
+            supabaseClient.rpc("get_dashboard_bundle", params),
+            supabaseClient.rpc("get_usage_page", {
+                ...params,
+                p_search: document.getElementById("table-search").value || "",
+                p_sort_key: currentSortKey,
+                p_sort_asc: currentSortAsc,
+                p_page: tablePage,
+                p_page_size: PAGE_SIZE
+            }),
+            supabaseClient.rpc("get_top_users", params)
+        ]);
+
+        if (bundleResult.error) throw bundleResult.error;
+        if (pageResult.error) throw pageResult.error;
+        if (topUsersResult.error) throw topUsersResult.error;
+
+        renderMetrics(bundleResult.data?.kpis || {});
+        renderCharts(bundleResult.data || {});
+        renderTable(pageResult.data || { total: 0, rows: [] });
+        renderTopUsers(topUsersResult.data || []);
+    } catch (err) {
+        console.error(err);
+        alert("Failed to apply filters: " + (err.message || err));
+    } finally {
+        setLoading(false);
+    }
+}
+
+function renderMetrics(kpis) {
+    document.getElementById("m-users").textContent = Number(kpis.active_users || 0).toLocaleString();
+    document.getElementById("m-actions").textContent = Number(kpis.total_actions || 0).toLocaleString();
+    document.getElementById("m-teams").textContent = Number(kpis.practice_areas || 0).toLocaleString();
+}
+
+// ── CHARTS ──────────────────────────────────────────────────
+const COLORS = ["#3b82f6","#8b5cf6","#10b981","#f59e0b","#ef4444","#06b6d4","#84cc16","#d946ef","#f43f5e","#14b8a6"];
+
+function destroyChart(id) {
+    if (charts[id]) charts[id].destroy();
+}
+
+function renderCharts(bundle) {
+    const hourly = bundle.hourly || [];
+    destroyChart('chart-hour');
+    charts['chart-hour'] = new Chart(document.getElementById('chart-hour'), {
+        type: 'line',
+        data: {
+            labels: hourly.map(h => h.hour),
+            datasets: [{ label: 'Activity', data: hourly.map(h => h.cnt), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.4 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    function barChart(id, items, horizontal) {
+        destroyChart(id);
+        charts[id] = new Chart(document.getElementById(id), {
+            type: 'bar',
+            data: {
+                labels: items.map(i => i.label),
+                datasets: [{ label: 'Count', data: items.map(i => i.value), backgroundColor: COLORS }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? 'y' : 'x', plugins: { legend: { display: false } } }
+        });
+    }
+
+    function pieChart(id, items, cutout) {
+        destroyChart(id);
+        charts[id] = new Chart(document.getElementById(id), {
+            type: cutout ? 'doughnut' : 'pie',
+            data: {
+                labels: items.map(i => i.label),
+                datasets: [{ data: items.map(i => i.value), backgroundColor: COLORS, borderWidth: 0 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: cutout || undefined, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    barChart('chart-practice', bundle.practice || [], true);
+    pieChart('chart-location', bundle.location || [], '65%');
+    pieChart('chart-platform', bundle.platform || []);
+    barChart('chart-designation', bundle.designation || [], false);
+}
+
+// ── TABLE ───────────────────────────────────────────────────
+function sortTable(key) {
+    if (currentSortKey === key) {
+        currentSortAsc = !currentSortAsc;
+    } else {
+        currentSortKey = key;
+        currentSortAsc = false;
+    }
+    tablePage = 1;
+    applyFilters();
+}
+
+function renderTable(pageData) {
+    tableTotal = Number(pageData.total || 0);
+    const rows = pageData.rows || [];
+    const search = document.getElementById("table-search").value || "";
+    const totalPages = Math.max(1, Math.ceil(tableTotal / PAGE_SIZE));
+
+    document.getElementById("table-count").textContent = tableTotal.toLocaleString() + " records" + (search ? " (filtered)" : "");
+    document.getElementById("table-body").innerHTML = rows.map(r => `<tr>
+        <td style="font-family:monospace;font-size:0.8rem;color:var(--text-secondary)">${(r.utc_time||"").slice(0,16)}</td>
+        <td style="font-size:0.8rem;color:var(--text-secondary)">${r.user_email||"—"}</td>
+        <td>${r.workforce_name||"—"}</td>
+        <td><span class="badge">${r.practice_function||"—"}</span></td>
+        <td>${r.location||"—"}</td>
+        <td><span class="badge">${r.access_point||"—"}</span></td>
+        <td style="font-size:0.8rem">${(r.product_surface_area||"—").substring(0,20)}</td>
+        <td style="text-align:center;font-weight:600">${r.file_count||"0"}</td>
+    </tr>`).join("");
+
+    const pagination = document.getElementById("pagination");
+    pagination.innerHTML = "";
+    if (totalPages > 1) {
+        const prev = document.createElement("button");
+        prev.textContent = "← Prev";
+        prev.className = "page-btn";
+        prev.disabled = tablePage <= 1;
+        prev.onclick = () => { tablePage--; applyFilters(); };
+        pagination.appendChild(prev);
+
+        for (let p = Math.max(1, tablePage - 2); p <= Math.min(totalPages, tablePage + 2); p++) {
+            const btn = document.createElement("button");
+            btn.textContent = p;
+            btn.className = "page-btn" + (p === tablePage ? " active" : "");
+            btn.onclick = () => { tablePage = p; applyFilters(); };
+            pagination.appendChild(btn);
+        }
+
+        const next = document.createElement("button");
+        next.textContent = "Next →";
+        next.className = "page-btn";
+        next.disabled = tablePage >= totalPages;
+        next.onclick = () => { tablePage++; applyFilters(); };
+        pagination.appendChild(next);
+    }
+}
+
+document.getElementById("table-search").addEventListener("input", () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+        tablePage = 1;
+        applyFilters();
+    }, 350);
+});
+
+// ── TOP USERS ───────────────────────────────────────────────
+function renderTopUsers(topUsers) {
+    document.getElementById("top-users-count").textContent = topUsers.length + " users";
+    document.getElementById("top-users-body").innerHTML = topUsers.map((user, idx) => `<tr>
+        <td style="font-weight: 600; text-align: center; color: var(--accent-color);">${idx + 1}</td>
+        <td style="font-family:monospace;font-size:0.85rem;color:var(--text-secondary)">${user.user}</td>
+        <td>${user.name}</td>
+        <td><span class="badge">${user.designation}</span></td>
+        <td>${user.location}</td>
+        <td style="font-weight: 600; text-align: center;">${user.actions}</td>
+        <td style="text-align: center;">${user.files}</td>
+    </tr>`).join("");
+}
+
+// ── EXPORT ──────────────────────────────────────────────────
+async function downloadCsv(rpcName, filename) {
+    setLoading(true);
+    try {
+        const params = {
+            ...getFilterParams(),
+            ...(rpcName === "export_usage_csv" ? { p_search: document.getElementById("table-search").value || "" } : {})
+        };
+        const { data, error } = await supabaseClient.rpc(rpcName, params);
+        if (error) throw error;
+        if (!data) {
+            alert("No data to export.");
+            return;
+        }
+        const blob = new Blob([data], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    } catch (err) {
+        alert("Export failed: " + (err.message || err));
+    } finally {
+        setLoading(false);
+    }
+}
+
+document.getElementById("export-btn").addEventListener("click", () => {
+    downloadCsv("export_usage_csv", `harvey_usage_${new Date().toISOString().slice(0,10)}.csv`);
+});
+
+document.getElementById("export-top-users-btn").addEventListener("click", () => {
+    downloadCsv("export_top_users_csv", `harvey_top_users_${new Date().toISOString().slice(0,10)}.csv`);
+});
+
+// Filter change handlers
+document.getElementById('filter-practice').addEventListener('change', () => { tablePage = 1; applyFilters(); });
+document.getElementById('filter-location').addEventListener('change', () => { tablePage = 1; applyFilters(); });
+document.getElementById('filter-access').addEventListener('change', () => { tablePage = 1; applyFilters(); });
+document.getElementById('filter-designation').addEventListener('change', () => { tablePage = 1; applyFilters(); });
+
+// ── INIT ────────────────────────────────────────────────────
+applyTheme('light');
+supabaseClient = initSupabase();
+if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+            showDashboard();
+            loadDashboard();
+        }
+    });
+    checkSession();
+}
+</script>
+</body>
+</html>
