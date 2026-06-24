@@ -551,6 +551,38 @@
             border-color: var(--accent-glow);
         }
 
+        .top-n-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .top-n-btn {
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .top-n-btn:hover {
+            border-color: var(--accent-glow);
+            color: var(--text-primary);
+        }
+
+        .top-n-btn.active {
+            background: var(--accent-gradient);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.35);
+        }
+
         .loading-overlay {
             position: fixed;
             inset: 0;
@@ -771,8 +803,7 @@
         <section class="glass-panel table-wrapper">
             <div class="table-header-top">
                 <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px;">Detailed Records</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;" id="table-count">— records</p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;" id="table-count">— records</p>
                 </div>
                 <div class="table-search-export">
                     <input type="text" class="table-search" id="table-search" placeholder="Search user, team, product…">
@@ -805,10 +836,16 @@
         <section class="glass-panel table-wrapper">
             <div class="table-header-top">
                 <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 4px;">Top Users</h3>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Top Users</h3>
                     <p style="color: var(--text-secondary); font-size: 0.9rem;" id="top-users-count">— users</p>
                 </div>
                 <div class="table-search-export">
+                    <div class="top-n-group" id="top-n-group">
+                        <button type="button" class="top-n-btn active" data-limit="10">Top 10</button>
+                        <button type="button" class="top-n-btn" data-limit="20">Top 20</button>
+                        <button type="button" class="top-n-btn" data-limit="50">Top 50</button>
+                        <button type="button" class="top-n-btn" data-limit="all">All</button>
+                    </div>
                     <button id="export-top-users-btn" class="btn-export">📥 Export CSV</button>
                 </div>
             </div>
@@ -845,6 +882,8 @@ let tableTotal = 0;
 let searchDebounce = null;
 let filtersBusy = false;
 let lastChartBundle = null;
+let allTopUsers = [];
+let topUsersLimit = 10;
 
 function showDashboardError(msg) {
     const el = document.getElementById("dashboard-error");
@@ -1081,7 +1120,8 @@ async function applyFilters() {
         if (topUsersResult.error) throw topUsersResult.error;
 
         renderTable(pageResult.data || { total: 0, rows: [] });
-        renderTopUsers(topUsersResult.data || []);
+        allTopUsers = topUsersResult.data || [];
+        renderTopUsers();
     } catch (err) {
         console.error(err);
         showDashboardError("Failed to load data: " + (err.message || err));
@@ -1212,10 +1252,23 @@ document.getElementById("table-search").addEventListener("input", () => {
 });
 
 // ── TOP USERS ───────────────────────────────────────────────
-function renderTopUsers(topUsers) {
-    document.getElementById("top-users-count").textContent = topUsers.length + " users";
-    document.getElementById("top-users-body").innerHTML = topUsers.map((user, idx) => `<tr>
-        <td style="font-weight: 600; text-align: center; color: var(--accent-color);">${idx + 1}</td>
+function getVisibleTopUsers() {
+    if (topUsersLimit === "all" || topUsersLimit === Infinity) return allTopUsers;
+    return allTopUsers.slice(0, topUsersLimit);
+}
+
+function renderTopUsers() {
+    const visible = getVisibleTopUsers();
+    const total = allTopUsers.length;
+    const limitLabel = topUsersLimit === "all" ? "all" : topUsersLimit;
+    document.getElementById("top-users-count").textContent =
+        total === 0 ? "— users"
+        : topUsersLimit === "all"
+            ? `Showing all ${total} users`
+            : `Showing top ${Math.min(visible.length, limitLabel)} of ${total} users`;
+
+    document.getElementById("top-users-body").innerHTML = visible.map((user, idx) => `<tr>
+        <td style="font-weight: 600; text-align: center; color: var(--accent-glow);">${idx + 1}</td>
         <td style="font-family:monospace;font-size:0.85rem;color:var(--text-secondary)">${user.user}</td>
         <td>${user.name}</td>
         <td><span class="badge">${user.designation}</span></td>
@@ -1223,6 +1276,38 @@ function renderTopUsers(topUsers) {
         <td style="font-weight: 600; text-align: center;">${user.actions}</td>
         <td style="text-align: center;">${user.files}</td>
     </tr>`).join("");
+}
+
+document.getElementById("top-n-group").addEventListener("click", (e) => {
+    const btn = e.target.closest(".top-n-btn");
+    if (!btn) return;
+    const limit = btn.dataset.limit;
+    topUsersLimit = limit === "all" ? "all" : parseInt(limit, 10);
+    document.querySelectorAll(".top-n-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderTopUsers();
+});
+
+function exportTopUsersCsv() {
+    const visible = getVisibleTopUsers();
+    if (!visible.length) {
+        showDashboardError("No top users to export.");
+        return;
+    }
+    const headers = ["Rank", "User Email", "Workforce Name", "Designation", "Location", "Actions", "Files"];
+    let csv = headers.join(",") + "\n";
+    visible.forEach((user, idx) => {
+        const row = [idx + 1, user.user, user.name, user.designation, user.location, user.actions, user.files]
+            .map(v => `"${String(v ?? "").replace(/"/g, '""')}"`);
+        csv += row.join(",") + "\n";
+    });
+    const suffix = topUsersLimit === "all" ? "all" : topUsersLimit;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `harvey_top_${suffix}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 }
 
 // ── EXPORT ──────────────────────────────────────────────────
@@ -1256,9 +1341,7 @@ document.getElementById("export-btn").addEventListener("click", () => {
     downloadCsv("export_usage_csv", `harvey_usage_${new Date().toISOString().slice(0,10)}.csv`);
 });
 
-document.getElementById("export-top-users-btn").addEventListener("click", () => {
-    downloadCsv("export_top_users_csv", `harvey_top_users_${new Date().toISOString().slice(0,10)}.csv`);
-});
+document.getElementById("export-top-users-btn").addEventListener("click", exportTopUsersCsv);
 
 // Filter change handlers
 document.getElementById('filter-practice').addEventListener('change', () => { tablePage = 1; applyFilters(); });
