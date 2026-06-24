@@ -894,11 +894,14 @@
 
             <div class="chart-card glass-panel">
                 <div class="chart-header">
-                    <h3>By Platform</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-platform', 'by_platform')">⬇ Save PNG</button>
+                    <div>
+                        <h3>By Tool</h3>
+                        <div class="chart-subtitle">Top tools &amp; features used</div>
+                    </div>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-tools', 'by_tool')">⬇ Save PNG</button>
                 </div>
                 <div class="chart-body">
-                    <canvas id="chart-platform"></canvas>
+                    <canvas id="chart-tools"></canvas>
                 </div>
             </div>
 
@@ -1390,7 +1393,7 @@ function renderCharts(bundle) {
 
     barChart('chart-team', bundle.team || [], true);
     pieChart('chart-location', bundle.location || [], '65%');
-    pieChart('chart-platform', bundle.platform || []);
+    pieChart('chart-tools', bundle.tools || []);
     barChart('chart-designation', bundle.designation || [], false);
 }
 
