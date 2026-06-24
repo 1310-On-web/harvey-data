@@ -342,6 +342,8 @@
             justify-content: space-between;
             align-items: center;
             gap: 12px;
+            width: 100%;
+            flex-shrink: 0;
         }
 
         .chart-header h3 {
@@ -349,26 +351,43 @@
             font-weight: 600;
             color: var(--text-primary);
             margin: 0;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chart-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-top: 2px;
         }
 
         .btn-chart-png {
-            background: transparent;
-            color: var(--text-secondary);
-            border: 1px solid var(--border-color);
-            padding: 6px 12px;
-            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.15);
+            color: #2563eb;
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            padding: 8px 14px;
+            border-radius: 8px;
             font-family: inherit;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
             transition: all 0.2s ease;
             flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        [data-theme="dark"] .btn-chart-png {
+            color: #93c5fd;
         }
 
         .btn-chart-png:hover {
+            background: rgba(59, 130, 246, 0.25);
             border-color: var(--accent-glow);
-            color: var(--accent-glow);
+            transform: translateY(-1px);
         }
 
         .chart-body {
@@ -831,18 +850,21 @@
         <section class="charts-grid">
             <div class="chart-card glass-panel span-2">
                 <div class="chart-header">
-                    <h3>Usage Trend</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-hour', 'usage_trend')">Save PNG</button>
+                    <div>
+                        <h3>Usage Over Time</h3>
+                        <div class="chart-subtitle" id="timeline-subtitle">By day</div>
+                    </div>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-timeline', 'usage_over_time')">⬇ Save PNG</button>
                 </div>
                 <div class="chart-body">
-                    <canvas id="chart-hour"></canvas>
+                    <canvas id="chart-timeline"></canvas>
                 </div>
             </div>
 
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Practice Area</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-practice', 'by_practice')">Save PNG</button>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-practice', 'by_practice')">⬇ Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-practice"></canvas>
@@ -852,7 +874,7 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Location</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-location', 'by_location')">Save PNG</button>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-location', 'by_location')">⬇ Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-location"></canvas>
@@ -862,7 +884,7 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Platform</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-platform', 'by_platform')">Save PNG</button>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-platform', 'by_platform')">⬇ Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-platform"></canvas>
@@ -872,45 +894,12 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Designation</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-designation', 'by_designation')">Save PNG</button>
+                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-designation', 'by_designation')">⬇ Save PNG</button>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-designation"></canvas>
                 </div>
             </div>
-        </section>
-
-        <!-- TABLE -->
-        <section class="glass-panel table-wrapper">
-            <div class="table-header-top">
-                <div>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;" id="table-count">— records</p>
-                </div>
-                <div class="table-search-export">
-                    <input type="text" class="table-search" id="table-search" placeholder="Search user, team, product…">
-                    <button id="export-btn" class="btn-export">📥 Export CSV</button>
-                </div>
-            </div>
-
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th onclick="sortTable('utc_time')">Time</th>
-                            <th onclick="sortTable('user')">User</th>
-                            <th onclick="sortTable('Workforce Name')">Name</th>
-                            <th onclick="sortTable('Practice/ Function')">Practice</th>
-                            <th onclick="sortTable('Location')">Location</th>
-                            <th onclick="sortTable('access_point')">Platform</th>
-                            <th onclick="sortTable('product_surface_area')">Product</th>
-                            <th onclick="sortTable('file_count')">Files</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body"></tbody>
-                </table>
-            </div>
-
-            <div class="pagination" id="pagination"></div>
         </section>
 
         <!-- TOP USERS -->
@@ -954,13 +943,7 @@
 <script>
 let supabaseClient = null;
 let activeFilters = { practice: "All", location: "All", access: "All", designation: "All" };
-let tablePage = 1;
-const PAGE_SIZE = 20;
-let currentSortKey = "utc_time";
-let currentSortAsc = false;
 let charts = {};
-let tableTotal = 0;
-let searchDebounce = null;
 let filtersBusy = false;
 let lastChartBundle = null;
 let allTopUsers = [];
@@ -1191,7 +1174,6 @@ function clearFilters() {
     if (defaultDateRange.min && defaultDateRange.max) {
         setDateRange(defaultDateRange.min, defaultDateRange.max);
     }
-    tablePage = 1;
     applyFilters();
 }
 
@@ -1214,22 +1196,9 @@ async function applyFilters() {
         renderMetrics(lastChartBundle.kpis || {});
         renderCharts(lastChartBundle);
 
-        const [pageResult, topUsersResult] = await Promise.all([
-            supabaseClient.rpc("get_usage_page", {
-                ...params,
-                p_search: document.getElementById("table-search").value || "",
-                p_sort_key: currentSortKey,
-                p_sort_asc: currentSortAsc,
-                p_page: tablePage,
-                p_page_size: PAGE_SIZE
-            }),
-            supabaseClient.rpc("get_top_users", params)
-        ]);
-
-        if (pageResult.error) throw pageResult.error;
+        const topUsersResult = await supabaseClient.rpc("get_top_users", params);
         if (topUsersResult.error) throw topUsersResult.error;
 
-        renderTable(pageResult.data || { total: 0, rows: [] });
         allTopUsers = topUsersResult.data || [];
         renderTopUsers();
     } catch (err) {
@@ -1267,15 +1236,36 @@ function saveChartPng(chartId, filename) {
 }
 
 function renderCharts(bundle) {
-    const hourly = bundle.hourly || [];
-    destroyChart('chart-hour');
-    charts['chart-hour'] = new Chart(document.getElementById('chart-hour'), {
+    const timeline = bundle.timeline || [];
+    const gran = bundle.timeline_granularity || 'daily';
+    const granLabels = { daily: 'By day', monthly: 'By month', yearly: 'By year' };
+    document.getElementById('timeline-subtitle').textContent = granLabels[gran] || 'Over time';
+
+    destroyChart('chart-timeline');
+    charts['chart-timeline'] = new Chart(document.getElementById('chart-timeline'), {
         type: 'line',
         data: {
-            labels: hourly.map(h => h.hour),
-            datasets: [{ label: 'Activity', data: hourly.map(h => h.cnt), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.4 }]
+            labels: timeline.map(t => t.label),
+            datasets: [{
+                label: 'Actions',
+                data: timeline.map(t => t.value),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: timeline.length > 60 ? 0 : 3,
+                pointHoverRadius: 5
+            }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 18 } },
+                y: { beginAtZero: true }
+            }
+        }
     });
 
     function barChart(id, items, horizontal) {
@@ -1307,71 +1297,6 @@ function renderCharts(bundle) {
     pieChart('chart-platform', bundle.platform || []);
     barChart('chart-designation', bundle.designation || [], false);
 }
-
-// ── TABLE ───────────────────────────────────────────────────
-function sortTable(key) {
-    if (currentSortKey === key) {
-        currentSortAsc = !currentSortAsc;
-    } else {
-        currentSortKey = key;
-        currentSortAsc = false;
-    }
-    tablePage = 1;
-    applyFilters();
-}
-
-function renderTable(pageData) {
-    tableTotal = Number(pageData.total || 0);
-    const rows = pageData.rows || [];
-    const search = document.getElementById("table-search").value || "";
-    const totalPages = Math.max(1, Math.ceil(tableTotal / PAGE_SIZE));
-
-    document.getElementById("table-count").textContent = tableTotal.toLocaleString() + " records" + (search ? " (filtered)" : "");
-    document.getElementById("table-body").innerHTML = rows.map(r => `<tr>
-        <td style="font-family:monospace;font-size:0.8rem;color:var(--text-secondary)">${(r.utc_time||"").slice(0,16)}</td>
-        <td style="font-size:0.8rem;color:var(--text-secondary)">${r.user_email||"—"}</td>
-        <td>${r.workforce_name||"—"}</td>
-        <td><span class="badge">${r.practice_function||"—"}</span></td>
-        <td>${r.location||"—"}</td>
-        <td><span class="badge">${r.access_point||"—"}</span></td>
-        <td style="font-size:0.8rem">${(r.product_surface_area||"—").substring(0,20)}</td>
-        <td style="text-align:center;font-weight:600">${r.file_count||"0"}</td>
-    </tr>`).join("");
-
-    const pagination = document.getElementById("pagination");
-    pagination.innerHTML = "";
-    if (totalPages > 1) {
-        const prev = document.createElement("button");
-        prev.textContent = "← Prev";
-        prev.className = "page-btn";
-        prev.disabled = tablePage <= 1;
-        prev.onclick = () => { tablePage--; applyFilters(); };
-        pagination.appendChild(prev);
-
-        for (let p = Math.max(1, tablePage - 2); p <= Math.min(totalPages, tablePage + 2); p++) {
-            const btn = document.createElement("button");
-            btn.textContent = p;
-            btn.className = "page-btn" + (p === tablePage ? " active" : "");
-            btn.onclick = () => { tablePage = p; applyFilters(); };
-            pagination.appendChild(btn);
-        }
-
-        const next = document.createElement("button");
-        next.textContent = "Next →";
-        next.className = "page-btn";
-        next.disabled = tablePage >= totalPages;
-        next.onclick = () => { tablePage++; applyFilters(); };
-        pagination.appendChild(next);
-    }
-}
-
-document.getElementById("table-search").addEventListener("input", () => {
-    clearTimeout(searchDebounce);
-    searchDebounce = setTimeout(() => {
-        tablePage = 1;
-        applyFilters();
-    }, 350);
-});
 
 // ── TOP USERS ───────────────────────────────────────────────
 function getVisibleTopUsers() {
@@ -1432,51 +1357,19 @@ function exportTopUsersCsv() {
     URL.revokeObjectURL(link.href);
 }
 
-// ── EXPORT ──────────────────────────────────────────────────
-async function downloadCsv(rpcName, filename) {
-    setLoading(true);
-    try {
-        const params = {
-            ...getFilterParams(),
-            ...(rpcName === "export_usage_csv" ? { p_search: document.getElementById("table-search").value || "" } : {})
-        };
-        const { data, error } = await supabaseClient.rpc(rpcName, params);
-        if (error) throw error;
-        if (!data) {
-            alert("No data to export.");
-            return;
-        }
-        const blob = new Blob([data], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
-        URL.revokeObjectURL(link.href);
-    } catch (err) {
-        alert("Export failed: " + (err.message || err));
-    } finally {
-        setLoading(false);
-    }
-}
-
-document.getElementById("export-btn").addEventListener("click", () => {
-    downloadCsv("export_usage_csv", `harvey_usage_${new Date().toISOString().slice(0,10)}.csv`);
-});
-
 document.getElementById("export-top-users-btn").addEventListener("click", exportTopUsersCsv);
 
 // Filter change handlers
-document.getElementById('filter-practice').addEventListener('change', () => { tablePage = 1; applyFilters(); });
-document.getElementById('filter-location').addEventListener('change', () => { tablePage = 1; applyFilters(); });
-document.getElementById('filter-access').addEventListener('change', () => { tablePage = 1; applyFilters(); });
-document.getElementById('filter-designation').addEventListener('change', () => { tablePage = 1; applyFilters(); });
+document.getElementById('filter-practice').addEventListener('change', () => applyFilters());
+document.getElementById('filter-location').addEventListener('change', () => applyFilters());
+document.getElementById('filter-access').addEventListener('change', () => applyFilters());
+document.getElementById('filter-designation').addEventListener('change', () => applyFilters());
 document.getElementById('filter-start-date').addEventListener('change', () => {
     const start = document.getElementById('filter-start-date').value;
     const end = document.getElementById('filter-end-date').value;
     if (start && end && start > end) {
         document.getElementById('filter-end-date').value = start;
     }
-    tablePage = 1;
     applyFilters();
 });
 document.getElementById('filter-end-date').addEventListener('change', () => {
@@ -1485,7 +1378,6 @@ document.getElementById('filter-end-date').addEventListener('change', () => {
     if (start && end && end < start) {
         document.getElementById('filter-start-date').value = end;
     }
-    tablePage = 1;
     applyFilters();
 });
 
