@@ -641,28 +641,28 @@
             
             <div class="filter-group">
                 <label for="filter-practice">Practice Area</label>
-                <select id="filter-practice" onchange="applyFilters()">
+                <select id="filter-practice">
                     <option value="All">All Practice Areas</option>
                 </select>
             </div>
 
             <div class="filter-group">
                 <label for="filter-location">Location</label>
-                <select id="filter-location" onchange="applyFilters()">
+                <select id="filter-location">
                     <option value="All">All Locations</option>
                 </select>
             </div>
 
             <div class="filter-group">
                 <label for="filter-access">Platform</label>
-                <select id="filter-access" onchange="applyFilters()">
+                <select id="filter-access">
                     <option value="All">All Platforms</option>
                 </select>
             </div>
 
             <div class="filter-group">
                 <label for="filter-designation">Designation</label>
-                <select id="filter-designation" onchange="applyFilters()">
+                <select id="filter-designation">
                     <option value="All">All Designations</option>
                 </select>
             </div>
@@ -686,6 +686,7 @@
                 <h1>Usage Analytics</h1>
                 <p class="subtitle">Harvey usage insights for your team</p>
                 <div class="sync-banner" id="sync-banner">Data through: —</div>
+                <div id="dashboard-error" style="display:none;margin-top:8px;padding:10px 14px;border-radius:8px;background:rgba(220,38,38,0.1);color:#dc2626;font-size:0.85rem;"></div>
             </div>
             <button class="theme-toggle" id="theme-toggle-alt" type="button">
                 <span id="theme-icon-alt">🌙</span>
@@ -842,6 +843,15 @@ let currentSortAsc = false;
 let charts = {};
 let tableTotal = 0;
 let searchDebounce = null;
+let filtersBusy = false;
+let lastChartBundle = null;
+
+function showDashboardError(msg) {
+    const el = document.getElementById("dashboard-error");
+    if (!msg) { el.style.display = "none"; el.textContent = ""; return; }
+    el.textContent = msg;
+    el.style.display = "block";
+}
 
 function getFilterParams() {
     return {
@@ -966,7 +976,7 @@ function applyTheme(theme) {
     }
     Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary');
     Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color');
-    if (Object.keys(charts).length > 0) applyFilters();
+    if (Object.keys(charts).length > 0 && lastChartBundle) renderCharts(lastChartBundle);
 }
 
 document.getElementById('theme-toggle').addEventListener('click', () => {
@@ -989,7 +999,7 @@ async function loadDashboard() {
         await applyFilters();
     } catch (err) {
         console.error(err);
-        alert("Failed to load dashboard: " + (err.message || err));
+        showDashboardError("Failed to load dashboard: " + (err.message || err));
     } finally {
         setLoading(false);
     }
@@ -1037,16 +1047,25 @@ function clearFilters() {
 }
 
 async function applyFilters() {
+    if (filtersBusy) return;
+    filtersBusy = true;
     activeFilters.practice = document.getElementById('filter-practice').value;
     activeFilters.location = document.getElementById('filter-location').value;
     activeFilters.access = document.getElementById('filter-access').value;
     activeFilters.designation = document.getElementById('filter-designation').value;
 
     setLoading(true);
+    showDashboardError("");
     try {
         const params = getFilterParams();
-        const [bundleResult, pageResult, topUsersResult] = await Promise.all([
-            supabaseClient.rpc("get_dashboard_bundle", params),
+        const bundleResult = await supabaseClient.rpc("get_dashboard_bundle", params);
+        if (bundleResult.error) throw bundleResult.error;
+
+        lastChartBundle = bundleResult.data || {};
+        renderMetrics(lastChartBundle.kpis || {});
+        renderCharts(lastChartBundle);
+
+        const [pageResult, topUsersResult] = await Promise.all([
             supabaseClient.rpc("get_usage_page", {
                 ...params,
                 p_search: document.getElementById("table-search").value || "",
@@ -1058,19 +1077,17 @@ async function applyFilters() {
             supabaseClient.rpc("get_top_users", params)
         ]);
 
-        if (bundleResult.error) throw bundleResult.error;
         if (pageResult.error) throw pageResult.error;
         if (topUsersResult.error) throw topUsersResult.error;
 
-        renderMetrics(bundleResult.data?.kpis || {});
-        renderCharts(bundleResult.data || {});
         renderTable(pageResult.data || { total: 0, rows: [] });
         renderTopUsers(topUsersResult.data || []);
     } catch (err) {
         console.error(err);
-        alert("Failed to apply filters: " + (err.message || err));
+        showDashboardError("Failed to load data: " + (err.message || err));
     } finally {
         setLoading(false);
+        filtersBusy = false;
     }
 }
 

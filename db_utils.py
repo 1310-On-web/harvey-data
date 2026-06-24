@@ -307,3 +307,13 @@ def update_sync_metadata(client, last_sync_rows: int) -> None:
     ).execute()
 
     print(f"Sync metadata updated: {row_count:,} rows, dates {min_row} to {max_row}")
+    refresh_dashboard_cache(client)
+
+
+def refresh_dashboard_cache(client) -> None:
+    """Refresh pre-computed dashboard stats in Supabase (avoids query timeouts)."""
+    try:
+        client.rpc("refresh_dashboard_cache").execute()
+        print("Dashboard cache refreshed.")
+    except Exception as exc:
+        print(f"Warning: dashboard cache refresh failed: {exc}")
