@@ -517,6 +517,40 @@
             color: var(--text-primary);
         }
 
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .login-divider::before,
+        .login-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-glow);
+        }
+
         .loading-overlay {
             position: fixed;
             inset: 0;
@@ -574,10 +608,15 @@
     <div class="glass-panel" style="width: 420px; padding: 48px 40px; text-align: center;">
         <div style="font-size: 32px; margin-bottom: 20px;">🔐</div>
         <div style="font-size: 20px; font-weight: 600; margin-bottom: 6px;">Khaitan Usage Analytics</div>
-        <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 32px;">Sign in with your invited email</div>
+        <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 24px;">Sign in with your invited account</div>
 
-        <input type="email" id="login-email" class="login-input" placeholder="you@khaitanco.com" autocomplete="email">
-        <button id="login-btn" class="btn-primary" style="width: 100%;">Send Magic Link</button>
+        <input type="email" id="login-email" class="login-input" placeholder="Email address" autocomplete="email">
+        <input type="password" id="login-password" class="login-input" placeholder="Password" autocomplete="current-password">
+        <button id="login-password-btn" class="btn-primary" style="width: 100%;">Sign In</button>
+
+        <div class="login-divider">or</div>
+
+        <button id="login-btn" class="btn-secondary">Send Magic Link</button>
         <div id="login-message" class="login-message"></div>
 
         <div style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 16px;">
@@ -827,6 +866,31 @@ function initSupabase() {
     return window.supabase.createClient(cfg.url, cfg.anonKey);
 }
 
+function showLoginMessage(text, isError) {
+    const msg = document.getElementById("login-message");
+    msg.textContent = text;
+    msg.style.color = isError ? "#dc2626" : "";
+}
+
+function handleAuthRedirectErrors() {
+    const hash = window.location.hash || "";
+    if (!hash.includes("error=")) return;
+
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+    const code = params.get("error_code") || params.get("error") || "";
+    const desc = params.get("error_description") || "";
+
+    let message = "Sign-in failed. Please request a new magic link.";
+    if (code === "otp_expired" || desc.includes("expired")) {
+        message = "That link has expired. Enter your email and click Send Magic Link for a fresh one.";
+    } else if (desc) {
+        message = desc.replace(/\+/g, " ");
+    }
+
+    showLoginMessage(message, true);
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
 async function checkSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
@@ -835,20 +899,49 @@ async function checkSession() {
     }
 }
 
-document.getElementById("login-btn").addEventListener("click", async () => {
+document.getElementById("login-password-btn").addEventListener("click", async () => {
     const email = document.getElementById("login-email").value.trim();
-    const msg = document.getElementById("login-message");
-    if (!email) {
-        msg.textContent = "Please enter your email.";
+    const password = document.getElementById("login-password").value;
+    if (!email || !password) {
+        showLoginMessage("Enter both email and password.", true);
         return;
     }
-    msg.textContent = "Sending magic link…";
+    showLoginMessage("Signing in…", false);
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) {
+        showLoginMessage(error.message, true);
+    } else {
+        showLoginMessage("", false);
+        showDashboard();
+        await loadDashboard();
+    }
+});
+
+document.getElementById("login-password").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("login-password-btn").click();
+});
+
+document.getElementById("login-btn").addEventListener("click", async () => {
+    const email = document.getElementById("login-email").value.trim();
+    if (!email) {
+        showLoginMessage("Please enter your email.", true);
+        return;
+    }
+    showLoginMessage("Sending magic link…", false);
     const redirectTo = window.location.origin + window.location.pathname;
     const { error } = await supabaseClient.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo }
     });
-    msg.textContent = error ? error.message : "Check your email for the sign-in link.";
+    if (error) {
+        let text = error.message;
+        if (text.toLowerCase().includes("rate limit")) {
+            text = "Email rate limit reached. Wait about 1 hour, then try again once.";
+        }
+        showLoginMessage(text, true);
+    } else {
+        showLoginMessage("Check your email for the sign-in link (use the newest link only).", false);
+    }
 });
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
@@ -1160,6 +1253,7 @@ document.getElementById('filter-designation').addEventListener('change', () => {
 applyTheme('light');
 supabaseClient = initSupabase();
 if (supabaseClient) {
+    handleAuthRedirectErrors();
     supabaseClient.auth.onAuthStateChange((_event, session) => {
         if (session) {
             showDashboard();
