@@ -53,13 +53,20 @@ HR_COLUMNS = [
 
 
 def get_supabase_client():
-    from supabase import create_client
+    import httpx
+    from supabase import ClientOptions, create_client
 
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    if not url or not key:
-        raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.")
-    return create_client(url, key)
+    if not url or not key or "YOUR_PROJECT" in url or "your_secret" in key:
+        raise SystemExit(
+            "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env "
+            "(Project URL + Secret/service_role key from Supabase → Settings → API Keys)."
+        )
+
+    verify_ssl = os.environ.get("SUPABASE_SSL_VERIFY", "false").lower() == "true"
+    options = ClientOptions(httpx_client=httpx.Client(verify=verify_ssl))
+    return create_client(url, key, options=options)
 
 
 def csv_row_to_db(row: dict[str, Any]) -> dict[str, Any]:
@@ -299,4 +306,4 @@ def update_sync_metadata(client, last_sync_rows: int) -> None:
         }
     ).execute()
 
-    print(f"Sync metadata updated: {row_count:,} rows, dates {min_row} → {max_row}")
+    print(f"Sync metadata updated: {row_count:,} rows, dates {min_row} to {max_row}")
