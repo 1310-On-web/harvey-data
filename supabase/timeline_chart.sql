@@ -155,7 +155,7 @@ BEGIN
     IF p_practice = 'All' AND p_location = 'All' AND p_access = 'All' AND p_designation = 'All'
        AND p_start_date IS NULL AND p_end_date IS NULL THEN
         SELECT dashboard_bundle INTO cached FROM dashboard_cache WHERE id = 1;
-        IF cached IS NOT NULL AND cached ? 'timeline' THEN RETURN cached; END IF;
+        IF cached IS NOT NULL AND (cached::jsonb ? 'timeline') THEN RETURN cached; END IF;
     END IF;
 
     PERFORM set_config('statement_timeout', '120000', true);
