@@ -1,30 +1,38 @@
 """
 Export Harvey usage from API, merge with HR Active List, write enriched CSV.
 
+Date ranges use local calendar boundaries (default Asia/Kolkata / IST) to match
+Harvey admin Export Analysis. See HARVEY_USAGE_DATA_ALIGNMENT.md for details.
+
 Usage:
     py -3 harvey_usage_export.py
-        Daily run (no args): fetch yesterday and append to the output CSV.
+        Daily run (no args): fetch IST yesterday and append to the output CSV.
 
     py -3 harvey_usage_export.py --date 2026-06-23
-        Fetch one day and append to the output CSV.
+        Fetch one IST calendar day and append to the output CSV.
 
-    py -3 harvey_usage_export.py --start 2026-05-01 --end 2026-06-01
-    py -3 harvey_usage_export.py --start 2026-04-01 --end 2026-05-01 --append
-    py -3 harvey_usage_export.py --start 2026-06-01 --end 2026-06-24 --output harvey_usage_enriched.csv --archive
+    py -3 harvey_usage_export.py --month 2026-04 --archive
+        Full IST calendar month (April 2026).
 
-Harvey API end_time is exclusive — use the first day of the month AFTER your range
-(e.g. --end 2026-06-01 to include all of May 2026).
+    py -3 harvey_usage_export.py --start 2026-01-01 --end 2026-06-25 --output out.csv
+        IST inclusive start, exclusive end (end = day after last inclusive day).
 
-Use --append with --start/--end to merge a new date range into an existing output CSV
-(deduped on unique_usage_id) instead of overwriting it — useful for adding prior months.
+    py -3 harvey_usage_export.py --start 2026-04-01 --end 2026-05-01 --timezone UTC
+        Legacy UTC midnight boundaries (not recommended for Harvey UI parity).
+
+Harvey API end_time is exclusive — use the first day AFTER your inclusive range
+(e.g. --end 2026-05-01 to include all of April 2026 in IST).
 """
+
+from __future__ import annotations
 
 import argparse
 import os
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -39,17 +47,38 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_HR_FILE = "Active List_15 June 26.xlsx"
 DEFAULT_OUTPUT = "harvey_usage_enriched.csv"
 UNMATCHED_FILE = "unmatched_emails.csv"
+DEFAULT_TZ = "Asia/Kolkata"
 MAX_RANGE_DAYS = 30  # Harvey API: time range must be within 30 days
+
+
+def load_env() -> None:
+    load_dotenv(SCRIPT_DIR / ".env")
+    load_dotenv(SCRIPT_DIR.parent / ".env")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Export Harvey usage enriched with HR data")
     parser.add_argument(
         "--date",
-        help="Single day YYYY-MM-DD (inclusive); appends to output CSV",
+        help="Single IST calendar day YYYY-MM-DD (inclusive); appends to output CSV",
     )
-    parser.add_argument("--start", help="Start date YYYY-MM-DD (inclusive); requires --end")
-    parser.add_argument("--end", help="End date YYYY-MM-DD (exclusive, API); requires --start")
+    parser.add_argument(
+        "--month",
+        help="Full calendar month YYYY-MM in local timezone (e.g. 2026-04)",
+    )
+    parser.add_argument(
+        "--start",
+        help="Start date YYYY-MM-DD inclusive in local timezone; requires --end",
+    )
+    parser.add_argument(
+        "--end",
+        help="End date YYYY-MM-DD exclusive in local timezone; requires --start",
+    )
+    parser.add_argument(
+        "--timezone",
+        default=DEFAULT_TZ,
+        help=f"IANA timezone for date boundaries (default: {DEFAULT_TZ})",
+    )
     parser.add_argument(
         "--hr-file",
         default=DEFAULT_HR_FILE,
@@ -73,8 +102,45 @@ def parse_args():
     return parser.parse_args()
 
 
-def resolve_date_range(args) -> tuple[str, str, bool]:
-    """Return (start, end_exclusive, append). Default: yesterday, append=True."""
+def resolve_timezone(tz_name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(tz_name)
+    except Exception as exc:
+        raise SystemExit(f"Invalid timezone: {tz_name!r} ({exc})") from exc
+
+
+def local_yesterday(tz: ZoneInfo) -> date:
+    now_local = datetime.now(tz)
+    return (now_local - timedelta(days=1)).date()
+
+
+def local_date_to_datetime(date_string: str, tz: ZoneInfo) -> datetime:
+    """Parse YYYY-MM-DD as local midnight in tz."""
+    d = datetime.strptime(date_string, "%Y-%m-%d").date()
+    return datetime(d.year, d.month, d.day, tzinfo=tz)
+
+
+def local_date_to_epoch(date_string: str, tz: ZoneInfo) -> int:
+    return int(local_date_to_datetime(date_string, tz).timestamp())
+
+
+def to_epoch(date_string: str, tz: ZoneInfo) -> int:
+    return local_date_to_epoch(date_string, tz)
+
+
+def resolve_date_range(args, tz: ZoneInfo) -> tuple[str, str, bool]:
+    """Return (start, end_exclusive, append). Default: IST yesterday, append=True."""
+    if args.month:
+        if args.date or args.start or args.end:
+            raise SystemExit("Use --month alone, or --date, or --start/--end.")
+        year, month = map(int, args.month.split("-"))
+        start_dt = date(year, month, 1)
+        if month == 12:
+            end_dt = date(year + 1, 1, 1)
+        else:
+            end_dt = date(year, month + 1, 1)
+        return start_dt.isoformat(), end_dt.isoformat(), args.append
+
     if args.date:
         if args.start or args.end:
             raise SystemExit("Use either --date or --start/--end, not both.")
@@ -88,15 +154,10 @@ def resolve_date_range(args) -> tuple[str, str, bool]:
             raise SystemExit("--start and --end must be used together.")
         return args.start, args.end, args.append
 
-    yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+    yesterday = local_yesterday(tz)
     start = yesterday.strftime("%Y-%m-%d")
     end = (yesterday + timedelta(days=1)).strftime("%Y-%m-%d")
     return start, end, True
-
-
-def to_epoch(date_string: str) -> int:
-    dt = datetime.strptime(date_string, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    return int(dt.timestamp())
 
 
 def archive_path(start: str, end: str) -> str:
@@ -146,17 +207,27 @@ def fetch_usage(headers: dict, start_time: int, end_time: int) -> dict:
     raise Exception("Maximum retries exceeded")
 
 
-def fetch_usage_range(headers: dict, start_date: str, end_date: str) -> list:
-    """Fetch all events between start (inclusive) and end (exclusive), chunking by MAX_RANGE_DAYS."""
-    start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+def fetch_usage_range(
+    headers: dict,
+    start_date: str,
+    end_date: str,
+    tz: ZoneInfo | None = None,
+) -> list:
+    """Fetch all events between local start (inclusive) and end (exclusive), chunking by MAX_RANGE_DAYS."""
+    if tz is None:
+        tz = ZoneInfo(DEFAULT_TZ)
+
+    start_dt = local_date_to_datetime(start_date, tz)
+    end_dt = local_date_to_datetime(end_date, tz)
     all_events: list = []
     seen_ids: set = set()
     chunk_start = start_dt
 
     while chunk_start < end_dt:
         chunk_end = min(chunk_start + timedelta(days=MAX_RANGE_DAYS), end_dt)
-        label = f"{chunk_start.date()} -> {chunk_end.date()}"
+        start_utc = chunk_start.astimezone(timezone.utc)
+        end_utc = chunk_end.astimezone(timezone.utc)
+        label = f"{chunk_start.date()} -> {chunk_end.date()} local ({start_utc} -> {end_utc} UTC)"
         print(f"  Chunk: {label}")
         data = fetch_usage(headers, int(chunk_start.timestamp()), int(chunk_end.timestamp()))
         for event in data.get("events", []):
@@ -171,16 +242,20 @@ def fetch_usage_range(headers: dict, start_date: str, end_date: str) -> list:
     return all_events
 
 
-def flatten_event(event: dict) -> dict:
+def flatten_event(event: dict, tz: ZoneInfo | None = None) -> dict:
+    if tz is None:
+        tz = ZoneInfo(DEFAULT_TZ)
+
     file_ids = event.get("file_ids", [])
     utc_time = event.get("utc_time", "")
     usage_date = ""
     usage_hour = ""
 
     try:
-        dt = pd.to_datetime(utc_time)
-        usage_date = dt.date()
-        usage_hour = dt.hour
+        dt = pd.to_datetime(utc_time, utc=True)
+        local_dt = dt.tz_convert(tz)
+        usage_date = local_dt.date()
+        usage_hour = local_dt.hour
     except Exception:
         pass
 
@@ -259,9 +334,10 @@ def normalize_date_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> int:
-    load_dotenv(SCRIPT_DIR / ".env")
+    load_env()
     args = parse_args()
-    start, end, append = resolve_date_range(args)
+    tz = resolve_timezone(args.timezone)
+    start, end, append = resolve_date_range(args, tz)
 
     token = os.environ.get("HARVEY_TOKEN")
     if not token:
@@ -285,21 +361,21 @@ def main() -> int:
         output_path = SCRIPT_DIR / output_path
 
     print("\nFetching Harvey Usage...")
-    print(f"Date Range: {start} -> {end} (end exclusive)")
+    print(f"Timezone: {args.timezone}")
+    print(f"Date Range: {start} -> {end} (local, end exclusive)")
     if append:
         print("Mode: append to existing output")
 
-    events = fetch_usage_range(headers, start, end)
+    events = fetch_usage_range(headers, start, end, tz)
     print(f"Retrieved {len(events):,} events (all chunks)")
 
     if not events:
         print(f"No usage records found for {start}.")
         return 0 if append else 1
 
-    harvey_df = pd.DataFrame([flatten_event(e) for e in events])
+    harvey_df = pd.DataFrame([flatten_event(e, tz) for e in events])
     harvey_df["user"] = harvey_df["user"].astype(str).str.strip().str.lower()
 
-    # Drop rows without a valid unique_usage_id (required for Power BI relationships)
     before = len(harvey_df)
     harvey_df = harvey_df[
         harvey_df["unique_usage_id"].notna()
@@ -336,8 +412,13 @@ def main() -> int:
 
     if args.archive:
         archive = SCRIPT_DIR / archive_path(start, end)
-        normalize_date_columns(new_chunk_df.copy()).to_csv(archive, index=False, encoding="utf-8-sig")
-        print(f"Archived new chunk: {archive}")
+        if archive.resolve() != output_path.resolve():
+            normalize_date_columns(new_chunk_df.copy()).to_csv(
+                archive, index=False, encoding="utf-8-sig"
+            )
+            print(f"Archived new chunk: {archive}")
+        else:
+            print(f"Archive skipped (same as output): {archive}")
 
     unmatched_df = final_df[final_df["Workforce Name"].isna()]
     if len(unmatched_df) > 0:

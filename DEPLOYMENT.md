@@ -58,19 +58,39 @@ Place `Active List_15 June 26.xlsx` in this folder, then:
 py -3 scripts/import_hr_excel.py --hr-file "Active List_15 June 26.xlsx"
 ```
 
-### Bulk import existing CSV (one-time)
+### Export usage data (IST-aligned, matches Harvey UI)
+
+All date ranges use **IST (Asia/Kolkata)** calendar boundaries by default — the same as Harvey admin Export Analysis. See [`HARVEY_USAGE_DATA_ALIGNMENT.md`](HARVEY_USAGE_DATA_ALIGNMENT.md) for background.
 
 ```powershell
-py -3 scripts/bulk_import_csv.py --csv harvey_usage_enriched.csv
+# Full calendar month
+py -3 harvey_usage_export.py --month 2026-04 --archive --output harvey_usage_enriched_2026-04-01_to_2026-04-30.csv
+
+# Custom range (inclusive start, exclusive end — end = day after last inclusive day)
+py -3 harvey_usage_export.py --start 2026-01-01 --end 2026-06-25 --output harvey_usage_enriched_2026-01-01_to_2026-06-24.csv --archive
 ```
 
-This may take 10–20 minutes for ~193k rows.
+Validate against a Harvey UI xlsx export:
+
+```powershell
+py -3 compare_usage.py --api harvey_usage_enriched_2026-04-01_to_2026-04-30.csv --ui harvey-usage-start_2026-04-01_end_2026-04-30.xlsx
+```
+
+### Bulk import existing CSV (one-time or re-import after IST fix)
+
+```powershell
+py -3 scripts/bulk_import_csv.py --csv harvey_usage_enriched_2026-01-01_to_2026-06-24.csv
+```
+
+This may take 10–20 minutes for ~197k rows. Re-import upserts on `unique_usage_id` — no truncate needed.
 
 ### Test daily sync locally
 
 ```powershell
 py -3 harvey_usage_sync.py
 ```
+
+Daily sync fetches **IST yesterday** with the correct UTC API window.
 
 ---
 
@@ -142,6 +162,8 @@ Future daily syncs will join against the updated `hr_employees` table.
 | Daily sync fails | Check `HARVEY_TOKEN` secret; view Actions logs |
 | Empty dashboard | Run bulk import; verify `sync_metadata.max_date` in Supabase |
 | HR merge shows unmatched | Re-run `import_hr_excel.py` with latest Active List |
+| Dashboard totals differ from Harvey UI | Ensure exports use IST (default). Re-export and bulk re-import. See [`HARVEY_USAGE_DATA_ALIGNMENT.md`](HARVEY_USAGE_DATA_ALIGNMENT.md) |
+| Month-edge daily counts look wrong | Filter/group by `usage_date` (IST), not UTC date of `utc_time` |
 
 ---
 
@@ -149,11 +171,13 @@ Future daily syncs will join against the updated `hr_employees` table.
 
 | File | Purpose |
 |------|---------|
-| `harvey_usage_sync.py` | Daily sync to Supabase (GitHub Actions) |
-| `harvey_usage_export.py` | Local CSV export (unchanged) |
-| `scripts/bulk_import_csv.py` | One-time CSV → Supabase migration |
+| `harvey_usage_sync.py` | Daily IST sync to Supabase (GitHub Actions) |
+| `harvey_usage_export.py` | IST-aligned CSV export + HR merge |
+| `compare_usage.py` | Validate API CSV vs Harvey UI xlsx |
+| `HARVEY_USAGE_DATA_ALIGNMENT.md` | UTC vs IST alignment context and verification |
+| `scripts/bulk_import_csv.py` | CSV → Supabase bulk upsert |
 | `scripts/import_hr_excel.py` | HR Excel → Supabase |
 | `index.html` | GitHub Pages entry point |
 | `dashboard_redesigned.html` | Same dashboard (local dev) |
-| `.github/workflows/daily-sync.yml` | Cron: fetch yesterday once/day |
+| `.github/workflows/daily-sync.yml` | Cron: fetch IST yesterday (5×/day for retries) |
 | `.github/workflows/deploy-pages.yml` | Deploy dashboard to GitHub Pages |

@@ -1,12 +1,15 @@
 """
 Daily Harvey usage sync to Supabase.
 
-Fetches yesterday's usage from Harvey API, merges with hr_employees in Supabase,
-and upserts into usage_events (file_ids excluded).
+Fetches yesterday's usage from Harvey API using IST calendar boundaries (default),
+merges with hr_employees in Supabase, and upserts into usage_events (file_ids excluded).
+
+See HARVEY_USAGE_DATA_ALIGNMENT.md for timezone details.
 
 Usage:
     py -3 harvey_usage_sync.py
     py -3 harvey_usage_sync.py --date 2026-06-23
+    py -3 harvey_usage_sync.py --timezone UTC
 
 Environment:
     HARVEY_TOKEN
@@ -19,7 +22,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -32,41 +35,56 @@ from db_utils import (
     update_sync_metadata,
     upsert_usage_batch,
 )
-from harvey_usage_export import fetch_usage_range, flatten_event
+from harvey_usage_export import (
+    DEFAULT_TZ,
+    fetch_usage_range,
+    flatten_event,
+    load_env,
+    local_yesterday,
+    resolve_timezone,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-INCLUDE_FILE_IDS = False
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Sync Harvey usage to Supabase")
-    parser.add_argument("--date", help="Single day YYYY-MM-DD (default: yesterday UTC)")
+    parser.add_argument(
+        "--date",
+        help="Single IST calendar day YYYY-MM-DD (default: IST yesterday)",
+    )
+    parser.add_argument(
+        "--timezone",
+        default=DEFAULT_TZ,
+        help=f"IANA timezone for date boundaries (default: {DEFAULT_TZ})",
+    )
     return parser.parse_args()
 
 
-def resolve_date_range(args) -> tuple[str, str]:
+def resolve_date_range(args, tz) -> tuple[str, str]:
     if args.date:
         day = datetime.strptime(args.date, "%Y-%m-%d").date()
         start = day.strftime("%Y-%m-%d")
         end = (day + timedelta(days=1)).strftime("%Y-%m-%d")
         return start, end
 
-    yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
+    yesterday = local_yesterday(tz)
     start = yesterday.strftime("%Y-%m-%d")
     end = (yesterday + timedelta(days=1)).strftime("%Y-%m-%d")
     return start, end
 
 
-def flatten_event_no_file_ids(event: dict) -> dict:
-    row = flatten_event(event)
+def flatten_event_no_file_ids(event: dict, tz) -> dict:
+    row = flatten_event(event, tz)
     row.pop("file_ids", None)
     return row
 
 
 def main() -> int:
-    load_dotenv(SCRIPT_DIR / ".env")
+    load_env()
     args = parse_args()
-    start, end = resolve_date_range(args)
+    tz = resolve_timezone(args.timezone)
+    start, end = resolve_date_range(args, tz)
 
     token = os.environ.get("HARVEY_TOKEN")
     if not token:
@@ -85,9 +103,10 @@ def main() -> int:
     print(f"HR records: {len(hr_df):,}")
 
     print("\nFetching Harvey usage...")
-    print(f"Date range: {start} -> {end} (end exclusive)")
+    print(f"Timezone: {args.timezone}")
+    print(f"Date range: {start} -> {end} (local, end exclusive)")
 
-    events = fetch_usage_range(headers, start, end)
+    events = fetch_usage_range(headers, start, end, tz)
     print(f"Retrieved {len(events):,} events")
 
     if not events:
@@ -95,7 +114,7 @@ def main() -> int:
         update_sync_metadata(client, 0)
         return 0
 
-    harvey_df = pd.DataFrame([flatten_event_no_file_ids(e) for e in events])
+    harvey_df = pd.DataFrame([flatten_event_no_file_ids(e, tz) for e in events])
     harvey_df["user"] = harvey_df["user"].astype(str).str.strip().str.lower()
 
     before = len(harvey_df)
