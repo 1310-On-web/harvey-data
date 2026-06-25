@@ -2,8 +2,12 @@ name: Daily Harvey Usage Sync
 
 on:
   schedule:
-    # 1:00 UTC ≈ 6:30 AM IST — fetch yesterday's data once per day
-    - cron: "0 1 * * *"
+    # GitHub cron is UTC; IST = UTC+5:30. Five runs/day for retry coverage if one fails.
+    - cron: "30 20 * * *" # 2:00 AM IST
+    - cron: "30 22 * * *" # 4:00 AM IST
+    - cron: "30 0 * * *"  # 6:00 AM IST
+    - cron: "30 8 * * *"  # 2:00 PM IST
+    - cron: "30 15 * * *" # 9:00 PM IST
   workflow_dispatch:
 
 jobs:
