@@ -278,7 +278,7 @@ BEGIN
     ),
     practice AS (
         SELECT COALESCE(practice_function, 'Unknown') AS label, COUNT(*)::bigint AS value
-        FROM filtered_no_practice GROUP BY 1 ORDER BY value DESC LIMIT 7
+        FROM filtered_base GROUP BY 1 ORDER BY value DESC LIMIT 7
     ),
     team AS (
         SELECT COALESCE(team, 'Unknown') AS label, COUNT(*)::bigint AS value

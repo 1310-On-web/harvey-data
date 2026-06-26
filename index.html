@@ -1522,11 +1522,16 @@ function updateFilterCount(key, values, selected) {
     el.textContent = `(${selected.length})`;
 }
 
-function renderAllFilterChecklists() {
+function renderAllFilterChecklists(options = {}) {
+    const { autoSelectTeams = false } = options;
     const teamValues = getTeamOptionsForPractices(pendingFilters.practice);
     filterOptions.team = teamValues;
-    const validTeams = pendingFilters.team.filter(t => teamValues.includes(t));
-    pendingFilters.team = validTeams.length ? validTeams : [...teamValues];
+    if (autoSelectTeams) {
+        pendingFilters.team = [...teamValues];
+    } else {
+        const validTeams = pendingFilters.team.filter(t => teamValues.includes(t));
+        pendingFilters.team = validTeams.length ? validTeams : [...teamValues];
+    }
 
     Object.keys(filterOptions).forEach(key => {
         if (key === 'team') {
@@ -1551,7 +1556,7 @@ function setFilterSelection(key, mode) {
         ? getTeamOptionsForPractices(pendingFilters.practice)
         : (filterOptions[key] || []);
     pendingFilters[key] = mode === 'all' ? [...values] : [];
-    renderAllFilterChecklists();
+    renderAllFilterChecklists({ autoSelectTeams: key === 'practice' });
 }
 
 function clearFilters() {
@@ -1862,7 +1867,7 @@ document.querySelector('.filter-section').addEventListener('change', (e) => {
     if (!cb) return;
     syncPendingFromCheckboxes();
     if (cb.dataset.filter === 'practice') {
-        renderAllFilterChecklists();
+        renderAllFilterChecklists({ autoSelectTeams: true });
     } else {
         updateFilterCount(cb.dataset.filter, filterOptions[cb.dataset.filter], pendingFilters[cb.dataset.filter]);
     }
