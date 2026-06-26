@@ -538,32 +538,43 @@
             margin-top: 2px;
         }
 
-        .btn-chart-png {
-            background: rgba(59, 130, 246, 0.15);
-            color: #2563eb;
-            border: 1px solid rgba(59, 130, 246, 0.35);
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s ease;
+        .chart-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             flex-shrink: 0;
+        }
+
+        .btn-chart-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+            transition: all 0.2s ease;
         }
 
-        [data-theme="dark"] .btn-chart-png {
-            color: #93c5fd;
+        .btn-chart-icon svg {
+            width: 16px;
+            height: 16px;
         }
 
-        .btn-chart-png:hover {
-            background: rgba(59, 130, 246, 0.25);
+        .btn-chart-icon:hover {
+            color: var(--accent-glow);
             border-color: var(--accent-glow);
-            transform: translateY(-1px);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .btn-chart-icon.csv:hover {
+            color: #0f766e;
+            border-color: #22d3a5;
+            background: rgba(34, 211, 165, 0.1);
         }
 
         .chart-body {
@@ -1105,7 +1116,10 @@
                         <h3>Usage Over Time</h3>
                         <div class="chart-subtitle" id="timeline-subtitle">By day</div>
                     </div>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-timeline', 'usage_over_time')">⬇ Save PNG</button>
+                    <div class="chart-actions">
+                        <button type="button" class="btn-chart-icon csv" title="Download CSV" onclick="saveChartCsv('timeline', 'usage_over_time', 'Period')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+                        <button type="button" class="btn-chart-icon" title="Save PNG" onclick="saveChartPng('chart-timeline', 'usage_over_time')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                    </div>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-timeline"></canvas>
@@ -1116,9 +1130,12 @@
                 <div class="chart-header">
                     <div>
                         <h3>By Practice Area</h3>
-                        <div class="chart-subtitle">Total actions by practice group</div>
+                        <div class="chart-subtitle">Top 7 practice areas by actions</div>
                     </div>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-practice', 'by_practice')">⬇ Save PNG</button>
+                    <div class="chart-actions">
+                        <button type="button" class="btn-chart-icon csv" title="Download CSV" onclick="saveChartCsv('practice', 'by_practice', 'Practice Area')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+                        <button type="button" class="btn-chart-icon" title="Save PNG" onclick="saveChartPng('chart-practice', 'by_practice')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                    </div>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-practice"></canvas>
@@ -1131,7 +1148,10 @@
                         <h3>By Team</h3>
                         <div class="chart-subtitle">Top 7 teams by actions</div>
                     </div>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-team', 'by_team')">⬇ Save PNG</button>
+                    <div class="chart-actions">
+                        <button type="button" class="btn-chart-icon csv" title="Download CSV" onclick="saveChartCsv('team', 'by_team', 'Team')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+                        <button type="button" class="btn-chart-icon" title="Save PNG" onclick="saveChartPng('chart-team', 'by_team')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                    </div>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-team"></canvas>
@@ -1141,7 +1161,10 @@
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <h3>By Location</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-location', 'by_location')">⬇ Save PNG</button>
+                    <div class="chart-actions">
+                        <button type="button" class="btn-chart-icon csv" title="Download CSV" onclick="saveChartCsv('location', 'by_location', 'Location')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+                        <button type="button" class="btn-chart-icon" title="Save PNG" onclick="saveChartPng('chart-location', 'by_location')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                    </div>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-location"></canvas>
@@ -1154,7 +1177,10 @@
                         <h3>By Tool</h3>
                         <div class="chart-subtitle">Top tools &amp; features used</div>
                     </div>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-tools', 'by_tool')">⬇ Save PNG</button>
+                    <div class="chart-actions">
+                        <button type="button" class="btn-chart-icon csv" title="Download CSV" onclick="saveChartCsv('tools', 'by_tool', 'Tool')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+                        <button type="button" class="btn-chart-icon" title="Save PNG" onclick="saveChartPng('chart-tools', 'by_tool')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                    </div>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-tools"></canvas>
@@ -1164,7 +1190,10 @@
             <div class="chart-card glass-panel span-2">
                 <div class="chart-header">
                     <h3>By Designation</h3>
-                    <button type="button" class="btn-chart-png" onclick="saveChartPng('chart-designation', 'by_designation')">⬇ Save PNG</button>
+                    <div class="chart-actions">
+                        <button type="button" class="btn-chart-icon csv" title="Download CSV" onclick="saveChartCsv('designation', 'by_designation', 'Designation')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+                        <button type="button" class="btn-chart-icon" title="Save PNG" onclick="saveChartPng('chart-designation', 'by_designation')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                    </div>
                 </div>
                 <div class="chart-body">
                     <canvas id="chart-designation"></canvas>
@@ -1611,6 +1640,29 @@ function saveChartPng(chartId, filename) {
     link.href = chart.toBase64Image("image/png", 1);
     link.download = `${filename}_${new Date().toISOString().slice(0, 10)}.png`;
     link.click();
+}
+
+function saveChartCsv(bundleKey, filename, labelHeader) {
+    if (!lastChartBundle) {
+        showDashboardError("Chart data not ready yet. Wait for data to load.");
+        return;
+    }
+    const items = lastChartBundle[bundleKey] || [];
+    if (!items.length) {
+        showDashboardError("No chart data to export.");
+        return;
+    }
+    const headers = [labelHeader, "Actions"];
+    let csv = headers.map(h => `"${h}"`).join(",") + "\n";
+    items.forEach(row => {
+        csv += `"${String(row.label ?? "").replace(/"/g, '""')}",${row.value ?? 0}\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 }
 
 function renderCharts(bundle) {
