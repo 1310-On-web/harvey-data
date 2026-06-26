@@ -30,7 +30,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           mkdir site
-          cp index.html site/
+          cp index.html favicon.svg site/
           cat > site/config.js << EOF
           window.SUPABASE_CONFIG = {
               url: "${SUPABASE_URL}",
