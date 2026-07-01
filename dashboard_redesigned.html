@@ -1685,6 +1685,7 @@
             </div>
             <div class="report-actions">
                 <button type="button" class="btn-primary" id="generate-report-btn">Generate Report</button>
+                <button type="button" class="btn-secondary" id="generate-new-report-btn" disabled>Generate New</button>
                 <button type="button" class="btn-export" id="download-excel-btn" disabled>Download Excel</button>
                 <button type="button" class="btn-export" id="download-pdf-btn" disabled>Download PDF</button>
             </div>
@@ -1719,6 +1720,7 @@ let pendingAccessLimit = 10;
 let lastReportBundle = null;
 let reportScope = 'team';
 let reportTeamsByPractice = {};
+let reportFormInitialized = false;
 
 function showDashboardError(msg) {
     const el = document.getElementById("dashboard-error");
@@ -1770,12 +1772,6 @@ function switchTab(tab) {
     document.getElementById('usage-tab-panel').hidden = tab !== 'usage';
     document.getElementById('adoption-tab-panel').hidden = tab !== 'adoption';
     document.getElementById('reports-tab-panel').hidden = tab !== 'reports';
-    if (tab === 'adoption' && !lastAdoptionBundle) {
-        loadAdoptionData();
-    }
-    if (tab === 'reports') {
-        initReportForm();
-    }
 }
 
 function setDateRange(min, max) {
@@ -2557,10 +2553,6 @@ document.querySelector('.dashboard-tabs').addEventListener('click', (e) => {
     const tab = tabBtn.dataset.tab;
     if (tab === activeTab) return;
     switchTab(tab);
-    if (tab === 'adoption') {
-        lastAdoptionBundle = null;
-        applyFilters();
-    }
 });
 
 document.getElementById('inactive-n-group').addEventListener('click', (e) => {
@@ -2608,6 +2600,7 @@ async function loadReportFilterOptions() {
     const practiceEl = document.getElementById('report-practice');
     practiceEl.innerHTML = '<option value="">— Select practice —</option>'
         + practices.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    initReportForm();
 }
 
 function escapeHtml(str) {
@@ -2615,16 +2608,34 @@ function escapeHtml(str) {
 }
 
 function initReportForm() {
+    const endEl = document.getElementById('report-end-date');
+    const startEl = document.getElementById('report-start-date');
     if (defaultDateRange.max) {
-        document.getElementById('report-end-date').value = defaultDateRange.max;
-        document.getElementById('report-end-date').max = defaultDateRange.max;
-        document.getElementById('report-end-date').min = defaultDateRange.min;
-        document.getElementById('report-start-date').max = defaultDateRange.max;
-        document.getElementById('report-start-date').min = defaultDateRange.min;
-        setReportPresetDays(10);
+        endEl.max = defaultDateRange.max;
+        endEl.min = defaultDateRange.min;
+        startEl.max = defaultDateRange.max;
+        startEl.min = defaultDateRange.min;
+        if (!reportFormInitialized) {
+            endEl.value = defaultDateRange.max;
+            setReportPresetDays(10);
+            reportFormInitialized = true;
+        }
     }
     updateReportTeamOptions();
     updateReportTeamFieldState();
+}
+
+function resetReportView() {
+    lastReportBundle = null;
+    document.getElementById('report-preview').style.display = 'none';
+    document.getElementById('report-preview').innerHTML = '';
+    document.getElementById('report-preview-placeholder').style.display = 'block';
+    document.getElementById('report-preview-placeholder').textContent =
+        'Configure options above and click Generate Report.';
+    document.getElementById('download-excel-btn').disabled = true;
+    document.getElementById('download-pdf-btn').disabled = true;
+    document.getElementById('generate-new-report-btn').disabled = true;
+    showDashboardError('');
 }
 
 function updateReportTeamOptions() {
@@ -2769,6 +2780,7 @@ async function generateReport() {
         renderReportPreview(data);
         document.getElementById('download-excel-btn').disabled = false;
         document.getElementById('download-pdf-btn').disabled = false;
+        document.getElementById('generate-new-report-btn').disabled = false;
     } catch (err) {
         console.error(err);
         showDashboardError('Failed to generate report: ' + (err.message || err));
@@ -2942,6 +2954,7 @@ document.querySelectorAll('[data-report-days]').forEach(btn => {
 });
 
 document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+document.getElementById('generate-new-report-btn').addEventListener('click', resetReportView);
 document.getElementById('download-excel-btn').addEventListener('click', downloadReportExcel);
 document.getElementById('download-pdf-btn').addEventListener('click', downloadReportPdf);
 
@@ -2979,7 +2992,6 @@ document.getElementById('filter-start-date').addEventListener('change', () => {
     if (start && end && start > end) {
         document.getElementById('filter-end-date').value = start;
     }
-    applyFilters();
 });
 document.getElementById('filter-end-date').addEventListener('change', () => {
     const start = document.getElementById('filter-start-date').value;
@@ -2987,7 +2999,6 @@ document.getElementById('filter-end-date').addEventListener('change', () => {
     if (start && end && end < start) {
         document.getElementById('filter-start-date').value = end;
     }
-    applyFilters();
 });
 
 // ── INIT ────────────────────────────────────────────────────
