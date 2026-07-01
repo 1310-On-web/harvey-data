@@ -1523,11 +1523,13 @@ function updateFilterCount(key, values, selected) {
 }
 
 function renderAllFilterChecklists(options = {}) {
-    const { autoSelectTeams = false } = options;
+    const { autoSelectTeams = false, allowEmptyTeams = false } = options;
     const teamValues = getTeamOptionsForPractices(pendingFilters.practice);
     filterOptions.team = teamValues;
     if (autoSelectTeams) {
         pendingFilters.team = [...teamValues];
+    } else if (allowEmptyTeams) {
+        pendingFilters.team = pendingFilters.team.filter(t => teamValues.includes(t));
     } else {
         const validTeams = pendingFilters.team.filter(t => teamValues.includes(t));
         pendingFilters.team = validTeams.length ? validTeams : [...teamValues];
@@ -1556,7 +1558,10 @@ function setFilterSelection(key, mode) {
         ? getTeamOptionsForPractices(pendingFilters.practice)
         : (filterOptions[key] || []);
     pendingFilters[key] = mode === 'all' ? [...values] : [];
-    renderAllFilterChecklists({ autoSelectTeams: key === 'practice' });
+    renderAllFilterChecklists({
+        autoSelectTeams: key === 'practice' && mode === 'all',
+        allowEmptyTeams: key === 'team' && mode === 'none'
+    });
 }
 
 function clearFilters() {
@@ -1895,10 +1900,13 @@ applyTheme('light');
 supabaseClient = initSupabase();
 if (supabaseClient) {
     handleAuthRedirectErrors();
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
             showDashboard();
-            loadDashboard();
+            // Only reload on sign-in; token refresh (e.g. returning to this tab) must not reset filters
+            if (event === 'SIGNED_IN') {
+                loadDashboard();
+            }
         }
     });
     checkSession();
