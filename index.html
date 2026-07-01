@@ -460,6 +460,72 @@
             gap: 24px;
         }
 
+        .kpi-grid.adoption-kpis {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        @media (min-width: 1200px) {
+            .kpi-grid.adoption-kpis {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        .dashboard-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .dashboard-tab {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dashboard-tab:hover {
+            border-color: var(--accent-glow);
+            color: var(--text-primary);
+        }
+
+        .dashboard-tab.active {
+            background: var(--accent-gradient);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 2px 12px rgba(59, 130, 246, 0.35);
+        }
+
+        .tab-panel[hidden] {
+            display: none !important;
+        }
+
+        .kpi-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .warning-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(245, 158, 11, 0.15);
+            color: #d97706;
+        }
+
+        [data-theme="dark"] .warning-badge {
+            color: #fbbf24;
+        }
+
         .kpi-card {
             padding: 24px;
             display: flex;
@@ -875,6 +941,9 @@
             .kpi-grid {
                 grid-template-columns: 1fr;
             }
+            .kpi-grid.adoption-kpis {
+                grid-template-columns: 1fr;
+            }
             .charts-grid {
                 grid-template-columns: 1fr;
             }
@@ -1083,12 +1152,18 @@
             </div>
         </header>
 
+        <nav class="dashboard-tabs" aria-label="Dashboard views">
+            <button type="button" class="dashboard-tab active" data-tab="usage">Usage</button>
+            <button type="button" class="dashboard-tab" data-tab="adoption">Adoption</button>
+        </nav>
+
+        <div id="usage-tab-panel" class="tab-panel">
         <!-- KPIs -->
         <section class="kpi-grid">
             <div class="kpi-card glass-panel">
                 <div class="kpi-icon">👥</div>
                 <div class="kpi-data">
-                    <p>Active Users</p>
+                    <p title="Harvey users with at least one action in the selected date range">Active Users (in period)</p>
                     <h3 id="m-users">—</h3>
                 </div>
             </div>
@@ -1236,6 +1311,168 @@
                 </table>
             </div>
         </section>
+        </div>
+
+        <div id="adoption-tab-panel" class="tab-panel" hidden>
+        <section class="kpi-grid adoption-kpis">
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">🏛️</div>
+                <div class="kpi-data">
+                    <p>Total Workforce</p>
+                    <h3 id="a-workforce">—</h3>
+                </div>
+            </div>
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">✅</div>
+                <div class="kpi-data">
+                    <p>Access Granted</p>
+                    <h3 id="a-granted">—</h3>
+                </div>
+            </div>
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">⏳</div>
+                <div class="kpi-data">
+                    <p>Access Pending</p>
+                    <h3 id="a-pending">—</h3>
+                </div>
+            </div>
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">🟢</div>
+                <div class="kpi-data">
+                    <p>Active Users</p>
+                    <h3 id="a-active">—</h3>
+                </div>
+            </div>
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">📈</div>
+                <div class="kpi-data">
+                    <p>Adoption Rate</p>
+                    <h3 id="a-rate">—</h3>
+                </div>
+            </div>
+            <div class="kpi-card glass-panel">
+                <div class="kpi-icon">💤</div>
+                <div class="kpi-data">
+                    <p>Inactive Users</p>
+                    <h3 id="a-inactive">—</h3>
+                    <div class="kpi-subtitle" id="a-never-used">—</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="charts-grid">
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <div>
+                        <h3>Team Access Coverage</h3>
+                        <div class="chart-subtitle">% of team with Harvey access granted</div>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-team-access"></canvas>
+                </div>
+            </div>
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <div>
+                        <h3>Team Adoption Rate</h3>
+                        <div class="chart-subtitle">% of access-granted users active in period</div>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-team-adoption"></canvas>
+                </div>
+            </div>
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <div>
+                        <h3>Access Funnel</h3>
+                        <div class="chart-subtitle">Workforce by access status</div>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-access-funnel"></canvas>
+                </div>
+            </div>
+            <div class="chart-card glass-panel">
+                <div class="chart-header">
+                    <div>
+                        <h3>Practice Access Coverage</h3>
+                        <div class="chart-subtitle">% of practice with access granted</div>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chart-practice-access"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-panel table-wrapper">
+            <div class="table-header-top">
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Inactive Users</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;" id="inactive-users-count">Has access but no usage in selected period</p>
+                </div>
+                <div class="table-search-export">
+                    <div class="top-n-group" id="inactive-n-group">
+                        <button type="button" class="top-n-btn active" data-limit="10" data-table="inactive">Top 10</button>
+                        <button type="button" class="top-n-btn" data-limit="20" data-table="inactive">Top 20</button>
+                        <button type="button" class="top-n-btn" data-limit="50" data-table="inactive">Top 50</button>
+                        <button type="button" class="top-n-btn" data-limit="all" data-table="inactive">All</button>
+                    </div>
+                    <button id="export-inactive-btn" class="btn-export">📥 Export CSV</button>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Team</th>
+                            <th>Designation</th>
+                            <th>Location</th>
+                            <th>Date Added</th>
+                            <th>Warning</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inactive-users-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="glass-panel table-wrapper">
+            <div class="table-header-top">
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Pending Access</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;" id="pending-access-count">Access not yet granted</p>
+                </div>
+                <div class="table-search-export">
+                    <div class="top-n-group" id="pending-n-group">
+                        <button type="button" class="top-n-btn active" data-limit="10" data-table="pending">Top 10</button>
+                        <button type="button" class="top-n-btn" data-limit="20" data-table="pending">Top 20</button>
+                        <button type="button" class="top-n-btn" data-limit="50" data-table="pending">Top 50</button>
+                        <button type="button" class="top-n-btn" data-limit="all" data-table="pending">All</button>
+                    </div>
+                    <button id="export-pending-btn" class="btn-export">📥 Export CSV</button>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Team</th>
+                            <th>Practice</th>
+                            <th>Designation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-access-body"></tbody>
+                </table>
+            </div>
+        </section>
+        </div>
     </main>
 </div>
 
@@ -1251,6 +1488,12 @@ let lastChartBundle = null;
 let allTopUsers = [];
 let topUsersLimit = 10;
 let defaultDateRange = { min: null, max: null };
+let activeTab = 'usage';
+let lastAdoptionBundle = null;
+let allInactiveUsers = [];
+let allPendingAccess = [];
+let inactiveUsersLimit = 10;
+let pendingAccessLimit = 10;
 
 function showDashboardError(msg) {
     const el = document.getElementById("dashboard-error");
@@ -1267,6 +1510,44 @@ function arrayParam(key) {
 }
 
 function getFilterParams() {
+    const start = document.getElementById('filter-start-date').value || null;
+    const end = document.getElementById('filter-end-date').value || null;
+    const isFullRange = start === defaultDateRange.min && end === defaultDateRange.max;
+    return {
+        p_practices: arrayParam('practice'),
+        p_teams: arrayParam('team'),
+        p_locations: arrayParam('location'),
+        p_accesses: arrayParam('access'),
+        p_designations: arrayParam('designation'),
+        p_products: arrayParam('product'),
+        p_start_date: isFullRange ? null : start,
+        p_end_date: isFullRange ? null : end
+    };
+}
+
+function getAdoptionParams() {
+    const params = getFilterParams();
+    return {
+        p_practices: params.p_practices,
+        p_teams: params.p_teams,
+        p_locations: params.p_locations,
+        p_designations: params.p_designations,
+        p_start_date: params.p_start_date,
+        p_end_date: params.p_end_date
+    };
+}
+
+function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.dashboard-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    document.getElementById('usage-tab-panel').hidden = tab !== 'usage';
+    document.getElementById('adoption-tab-panel').hidden = tab !== 'adoption';
+    if (tab === 'adoption' && !lastAdoptionBundle) {
+        loadAdoptionData();
+    }
+}
     const start = document.getElementById('filter-start-date').value || null;
     const end = document.getElementById('filter-end-date').value || null;
     const isFullRange = start === defaultDateRange.min && end === defaultDateRange.max;
@@ -1589,19 +1870,11 @@ async function applyFilters() {
     setLoading(true);
     showDashboardError("");
     try {
-        const params = getFilterParams();
-        const bundleResult = await supabaseClient.rpc("get_dashboard_bundle", params);
-        if (bundleResult.error) throw bundleResult.error;
-
-        lastChartBundle = bundleResult.data || {};
-        renderMetrics(lastChartBundle.kpis || {});
-        renderCharts(lastChartBundle);
-
-        const topUsersResult = await supabaseClient.rpc("get_top_users", params);
-        if (topUsersResult.error) throw topUsersResult.error;
-
-        allTopUsers = topUsersResult.data || [];
-        renderTopUsers();
+        if (activeTab === 'adoption') {
+            await loadAdoptionData();
+        } else {
+            await loadUsageData();
+        }
     } catch (err) {
         console.error(err);
         showDashboardError("Failed to load data: " + (err.message || err));
@@ -1609,6 +1882,36 @@ async function applyFilters() {
         setLoading(false);
         filtersBusy = false;
     }
+}
+
+async function loadUsageData() {
+    const params = getFilterParams();
+    const bundleResult = await supabaseClient.rpc("get_dashboard_bundle", params);
+    if (bundleResult.error) throw bundleResult.error;
+
+    lastChartBundle = bundleResult.data || {};
+    renderMetrics(lastChartBundle.kpis || {});
+    renderCharts(lastChartBundle);
+
+    const topUsersResult = await supabaseClient.rpc("get_top_users", params);
+    if (topUsersResult.error) throw topUsersResult.error;
+
+    allTopUsers = topUsersResult.data || [];
+    renderTopUsers();
+}
+
+async function loadAdoptionData() {
+    const params = getAdoptionParams();
+    const result = await supabaseClient.rpc("get_adoption_bundle", params);
+    if (result.error) throw result.error;
+
+    lastAdoptionBundle = result.data || {};
+    renderAdoptionMetrics(lastAdoptionBundle.kpis || {});
+    renderAdoptionCharts(lastAdoptionBundle);
+    allInactiveUsers = lastAdoptionBundle.inactive_users || [];
+    allPendingAccess = lastAdoptionBundle.pending_access || [];
+    renderInactiveUsers();
+    renderPendingAccess();
 }
 
 function renderMetrics(kpis) {
@@ -1778,6 +2081,154 @@ function renderCharts(bundle) {
     barChart('chart-designation', bundle.designation || [], false);
 }
 
+function renderAdoptionMetrics(kpis) {
+    document.getElementById("a-workforce").textContent = Number(kpis.total_workforce || 0).toLocaleString();
+    document.getElementById("a-granted").textContent = Number(kpis.access_granted || 0).toLocaleString();
+    document.getElementById("a-pending").textContent = Number(kpis.access_pending || 0).toLocaleString();
+    document.getElementById("a-active").textContent = Number(kpis.active_users || 0).toLocaleString();
+    document.getElementById("a-rate").textContent = `${Number(kpis.adoption_rate || 0)}%`;
+    document.getElementById("a-inactive").textContent = Number(kpis.inactive_users || 0).toLocaleString();
+    const neverUsed = Number(kpis.never_used_lifetime || 0);
+    const avgActions = Number(kpis.avg_actions_per_active || 0);
+    document.getElementById("a-never-used").textContent =
+        `${neverUsed.toLocaleString()} never used (lifetime) · ${avgActions} avg actions/active`;
+}
+
+function pctBarChart(id, items, horizontal) {
+    destroyChart(id);
+    const minVal = items.length ? Math.min(...items.map(i => Number(i.value) || 0)) : 0;
+    charts[id] = new Chart(document.getElementById(id), {
+        type: 'bar',
+        data: {
+            labels: items.map(i => i.label),
+            datasets: [{
+                label: '%',
+                data: items.map(i => i.value),
+                backgroundColor: items.map(i =>
+                    Number(i.value) === minVal && items.length > 1 ? '#ef4444' : '#3b82f6'
+                )
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: horizontal ? 'y' : 'x',
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: horizontal ? 'right' : 'top',
+                    offset: horizontal ? 4 : 2,
+                    color: chartLabelColor(),
+                    font: { size: 11, weight: '600' },
+                    formatter: v => `${v}%`
+                }
+            },
+            scales: {
+                x: { max: horizontal ? undefined : 100 },
+                y: { max: horizontal ? 100 : undefined, beginAtZero: true }
+            }
+        }
+    });
+}
+
+function renderAdoptionCharts(bundle) {
+    pctBarChart('chart-team-access', bundle.team_access_coverage || [], true);
+    pctBarChart('chart-team-adoption', bundle.team_adoption_rate || [], true);
+    pctBarChart('chart-practice-access', bundle.practice_access_coverage || [], true);
+
+    destroyChart('chart-access-funnel');
+    const funnel = bundle.access_funnel || [];
+    charts['chart-access-funnel'] = new Chart(document.getElementById('chart-access-funnel'), {
+        type: 'doughnut',
+        data: {
+            labels: funnel.map(i => i.label),
+            datasets: [{ data: funnel.map(i => i.value), backgroundColor: COLORS, borderWidth: 0 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '55%',
+            plugins: {
+                legend: { position: 'bottom' },
+                datalabels: {
+                    display: pieLabelDisplay,
+                    color: '#fff',
+                    font: { size: 11, weight: '600' },
+                    formatter: formatChartValue
+                }
+            }
+        }
+    });
+}
+
+function getVisibleInactiveUsers() {
+    if (inactiveUsersLimit === "all" || inactiveUsersLimit === Infinity) return allInactiveUsers;
+    return allInactiveUsers.slice(0, inactiveUsersLimit);
+}
+
+function getVisiblePendingAccess() {
+    if (pendingAccessLimit === "all" || pendingAccessLimit === Infinity) return allPendingAccess;
+    return allPendingAccess.slice(0, pendingAccessLimit);
+}
+
+function renderInactiveUsers() {
+    const visible = getVisibleInactiveUsers();
+    const total = allInactiveUsers.length;
+    const limitLabel = inactiveUsersLimit === "all" ? "all" : inactiveUsersLimit;
+    document.getElementById("inactive-users-count").textContent =
+        total === 0 ? "No inactive users in this period"
+        : `Showing ${visible.length === total ? total : limitLabel + " of " + total} inactive user(s)`;
+
+    document.getElementById("inactive-users-body").innerHTML = visible.map(user => {
+        const warning = user.low_usage_warning
+            ? `<span class="warning-badge">${user.low_usage_warning}</span>` : '—';
+        return `<tr>
+            <td>${user.name || '—'}</td>
+            <td style="font-family:monospace;font-size:0.85rem;color:var(--text-secondary)">${user.email || '—'}</td>
+            <td>${user.team || '—'}</td>
+            <td>${user.designation || '—'}</td>
+            <td>${user.location || '—'}</td>
+            <td>${user.date_added || '—'}</td>
+            <td>${warning}</td>
+        </tr>`;
+    }).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);padding:24px;">No inactive users</td></tr>`;
+}
+
+function renderPendingAccess() {
+    const visible = getVisiblePendingAccess();
+    const total = allPendingAccess.length;
+    const limitLabel = pendingAccessLimit === "all" ? "all" : pendingAccessLimit;
+    document.getElementById("pending-access-count").textContent =
+        total === 0 ? "No pending access requests"
+        : `Showing ${visible.length === total ? total : limitLabel + " of " + total} pending user(s)`;
+
+    document.getElementById("pending-access-body").innerHTML = visible.map(user => `<tr>
+        <td>${user.name || '—'}</td>
+        <td style="font-family:monospace;font-size:0.85rem;color:var(--text-secondary)">${user.email || '—'}</td>
+        <td>${user.team || '—'}</td>
+        <td>${user.practice || '—'}</td>
+        <td>${user.designation || '—'}</td>
+    </tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px;">No pending access</td></tr>`;
+}
+
+function exportTableCsv(rows, headers, keys, filename) {
+    if (!rows.length) {
+        showDashboardError("No data to export.");
+        return;
+    }
+    let csv = headers.map(h => `"${h}"`).join(",") + "\n";
+    rows.forEach(row => {
+        csv += keys.map(k => `"${String(row[k] ?? "").replace(/"/g, '""')}"`).join(",") + "\n";
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
 // ── TOP USERS ───────────────────────────────────────────────
 function getVisibleTopUsers() {
     if (topUsersLimit === "all" || topUsersLimit === Infinity) return allTopUsers;
@@ -1849,6 +2300,54 @@ function exportTopUsersCsv() {
 }
 
 document.getElementById("export-top-users-btn").addEventListener("click", exportTopUsersCsv);
+
+document.querySelector('.dashboard-tabs').addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.dashboard-tab');
+    if (!tabBtn) return;
+    const tab = tabBtn.dataset.tab;
+    if (tab === activeTab) return;
+    switchTab(tab);
+    if (tab === 'adoption') {
+        lastAdoptionBundle = null;
+        applyFilters();
+    }
+});
+
+document.getElementById('inactive-n-group').addEventListener('click', (e) => {
+    const btn = e.target.closest('.top-n-btn');
+    if (!btn) return;
+    inactiveUsersLimit = btn.dataset.limit === "all" ? "all" : parseInt(btn.dataset.limit, 10);
+    document.querySelectorAll('#inactive-n-group .top-n-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderInactiveUsers();
+});
+
+document.getElementById('pending-n-group').addEventListener('click', (e) => {
+    const btn = e.target.closest('.top-n-btn');
+    if (!btn) return;
+    pendingAccessLimit = btn.dataset.limit === "all" ? "all" : parseInt(btn.dataset.limit, 10);
+    document.querySelectorAll('#pending-n-group .top-n-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderPendingAccess();
+});
+
+document.getElementById('export-inactive-btn').addEventListener('click', () => {
+    exportTableCsv(
+        getVisibleInactiveUsers(),
+        ['Name', 'Email', 'Team', 'Designation', 'Location', 'Date Added', 'Warning'],
+        ['name', 'email', 'team', 'designation', 'location', 'date_added', 'low_usage_warning'],
+        'harvey_inactive_users'
+    );
+});
+
+document.getElementById('export-pending-btn').addEventListener('click', () => {
+    exportTableCsv(
+        getVisiblePendingAccess(),
+        ['Name', 'Email', 'Team', 'Practice', 'Designation'],
+        ['name', 'email', 'team', 'practice', 'designation'],
+        'harvey_pending_access'
+    );
+});
 
 // Filter handlers
 document.getElementById('apply-filters-btn').addEventListener('click', () => applyFilters());

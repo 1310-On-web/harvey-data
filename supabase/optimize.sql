@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS dashboard_cache (
     filter_options JSONB,
     dashboard_bundle JSONB,
     top_users JSONB,
+    adoption_bundle JSONB,
     refreshed_at TIMESTAMPTZ
 );
 

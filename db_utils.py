@@ -49,7 +49,66 @@ HR_COLUMNS = [
     "team",
     "practice_function",
     "reporting_manager_name",
+    "harvey_status",
+    "access_state",
+    "phase",
+    "low_usage_warning",
+    "date_added",
+    "training_attendance",
+    "cohort_training_attendance",
+    "notes",
 ]
+
+
+def derive_access_state(status: str | None, *, has_status_column: bool = True) -> str:
+    """Map Master-data Status column to normalized access_state."""
+    if not has_status_column:
+        return "granted"
+    if not status:
+        return "pending"
+    s = status.strip()
+    if s == "Added":
+        return "granted"
+    if s.lower().startswith("revoked"):
+        return "revoked"
+    if "resigned" in s.lower():
+        return "resigned"
+    return "pending"
+
+
+_ACCESS_STATE_RANK = {"granted": 4, "revoked": 3, "resigned": 2, "pending": 1}
+
+
+def dedupe_hr_records(records: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
+    """Merge duplicate emails; prefer granted access and fill missing fields."""
+    by_email: dict[str, dict[str, Any]] = {}
+    duplicate_emails: list[str] = []
+
+    for rec in records:
+        email = rec["email"]
+        if email not in by_email:
+            by_email[email] = rec.copy()
+            continue
+
+        duplicate_emails.append(email)
+        existing = by_email[email]
+        rec_rank = _ACCESS_STATE_RANK.get(rec.get("access_state"), 0)
+        existing_rank = _ACCESS_STATE_RANK.get(existing.get("access_state"), 0)
+
+        if rec_rank > existing_rank:
+            winner, loser = rec.copy(), existing
+        else:
+            winner, loser = existing.copy(), rec
+
+        for key, value in loser.items():
+            if key == "email" or not value:
+                continue
+            if not winner.get(key):
+                winner[key] = value
+
+        by_email[email] = winner
+
+    return list(by_email.values()), sorted(set(duplicate_emails))
 
 
 def get_supabase_client():
@@ -173,6 +232,7 @@ def dataframe_to_usage_records(df: pd.DataFrame) -> list[dict[str, Any]]:
 def hr_dataframe_to_records(hr_df: pd.DataFrame) -> list[dict[str, Any]]:
     hr_df = hr_df.copy()
     hr_df.columns = hr_df.columns.astype(str).str.strip()
+    has_status_column = "Status" in hr_df.columns
     records: list[dict[str, Any]] = []
 
     for row in hr_df.to_dict(orient="records"):
@@ -196,6 +256,16 @@ def hr_dataframe_to_records(hr_df: pd.DataFrame) -> list[dict[str, Any]]:
             s = str(val).strip()
             return s if s else None
 
+        harvey_status = _str(row.get("Status")) if has_status_column else None
+        access_state = derive_access_state(harvey_status, has_status_column=has_status_column)
+
+        date_added = row.get("Date Added")
+        if date_added is not None and not (isinstance(date_added, float) and math.isnan(date_added)):
+            date_added = pd.to_datetime(date_added, errors="coerce", dayfirst=True)
+            date_added = date_added.date().isoformat() if pd.notna(date_added) else None
+        else:
+            date_added = None
+
         records.append(
             {
                 "email": email,
@@ -207,9 +277,18 @@ def hr_dataframe_to_records(hr_df: pd.DataFrame) -> list[dict[str, Any]]:
                 "team": _str(row.get("Team")),
                 "practice_function": _str(row.get("Practice/ Function")),
                 "reporting_manager_name": _str(row.get("Reporting Manager Name")),
+                "harvey_status": harvey_status,
+                "access_state": access_state,
+                "phase": _str(row.get("Phase")),
+                "low_usage_warning": _str(row.get("Low usage warning")),
+                "date_added": date_added,
+                "training_attendance": _str(row.get("Training Attendance")),
+                "cohort_training_attendance": _str(row.get("Cohort Training Attendance")),
+                "notes": _str(row.get("Notes")),
                 "updated_at": datetime.utcnow().isoformat(),
             }
         )
+    records, _ = dedupe_hr_records(records)
     return records
 
 
@@ -224,6 +303,9 @@ def upsert_usage_batch(client, records: list[dict[str, Any]], batch_size: int = 
 
 
 def upsert_hr_records(client, records: list[dict[str, Any]], batch_size: int = 500) -> int:
+    records, duplicate_emails = dedupe_hr_records(records)
+    if duplicate_emails:
+        print(f"  Merged {len(duplicate_emails):,} duplicate email(s): {', '.join(duplicate_emails)}")
     total = 0
     for i in range(0, len(records), batch_size):
         batch = records[i : i + batch_size]

@@ -1,5 +1,5 @@
 """
-Export Harvey usage from API, merge with HR Active List, write enriched CSV.
+Export Harvey usage from API, merge with Master-data, write enriched CSV.
 
 Date ranges use local calendar boundaries (default Asia/Kolkata / IST) to match
 Harvey admin Export Analysis. See HARVEY_USAGE_DATA_ALIGNMENT.md for details.
@@ -44,7 +44,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 BASE_URL = "https://eu.api.harvey.ai"
 INCLUDE_FILE_IDS = True
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_HR_FILE = "Active List_15 June 26.xlsx"
+DEFAULT_HR_FILE = "Master-data.xlsx"
 DEFAULT_OUTPUT = "harvey_usage_enriched.csv"
 UNMATCHED_FILE = "unmatched_emails.csv"
 DEFAULT_TZ = "Asia/Kolkata"
@@ -82,7 +82,7 @@ def parse_args():
     parser.add_argument(
         "--hr-file",
         default=DEFAULT_HR_FILE,
-        help=f"HR Active List xlsx (default: {DEFAULT_HR_FILE})",
+        help=f"Master-data xlsx (default: {DEFAULT_HR_FILE})",
     )
     parser.add_argument(
         "--output",

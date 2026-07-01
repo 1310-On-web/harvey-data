@@ -1,7 +1,7 @@
 -- Harvey Usage Dashboard — Supabase schema
 -- Run in Supabase SQL Editor after creating your project.
 
--- HR master data (refreshed monthly)
+-- HR / Master-data (refreshed monthly from Master-data.xlsx)
 CREATE TABLE IF NOT EXISTS hr_employees (
     email TEXT PRIMARY KEY,
     workforce_id TEXT,
@@ -12,8 +12,18 @@ CREATE TABLE IF NOT EXISTS hr_employees (
     team TEXT,
     practice_function TEXT,
     reporting_manager_name TEXT,
+    harvey_status TEXT,
+    access_state TEXT,
+    phase TEXT,
+    low_usage_warning TEXT,
+    date_added DATE,
+    training_attendance TEXT,
+    cohort_training_attendance TEXT,
+    notes TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_hr_access_state ON hr_employees (access_state);
 
 -- Enriched usage events (daily sync; file_ids excluded)
 CREATE TABLE IF NOT EXISTS usage_events (

@@ -21,6 +21,7 @@ This guide walks through going live with the free stack: **Supabase + GitHub Act
 3. Open **SQL Editor** and run in order:
    - [`supabase/schema.sql`](supabase/schema.sql)
    - [`supabase/functions.sql`](supabase/functions.sql)
+   - Remaining migrations in order (see `supabase/` folder), ending with [`supabase/master_data_adoption.sql`](supabase/master_data_adoption.sql) for adoption metrics
 
 ---
 
@@ -50,13 +51,15 @@ SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-### Import HR master data (once, then monthly)
+### Import Master-data (once, then monthly)
 
-Place `Active List_15 June 26.xlsx` in this folder, then:
+Place `Master-data.xlsx` in this folder (close Excel before importing), then:
 
 ```powershell
-py -3 scripts/import_hr_excel.py --hr-file "Active List_15 June 26.xlsx"
+py -3 scripts/import_hr_excel.py --hr-file "Master-data.xlsx"
 ```
+
+The import upserts `hr_employees` with access state (`granted`, `pending`, `revoked`, `resigned`) and refreshes the dashboard cache. The **Adoption** tab compares this master list against Harvey usage.
 
 ### Export usage data (IST-aligned, matches Harvey UI)
 
@@ -141,15 +144,15 @@ Open `http://localhost:5500/dashboard_redesigned.html` and add that URL to Supab
 
 ---
 
-## Monthly HR refresh
+## Monthly Master-data refresh
 
-When HR sends an updated Active List:
+When HR sends an updated `Master-data.xlsx`:
 
 ```powershell
-py -3 scripts/import_hr_excel.py --hr-file "Active List_NEW_DATE.xlsx"
+py -3 scripts/import_hr_excel.py --hr-file "Master-data.xlsx"
 ```
 
-Future daily syncs will join against the updated `hr_employees` table.
+Future daily syncs will join against the updated `hr_employees` table. Re-open the dashboard **Adoption** tab to see updated access and inactive-user metrics.
 
 ---
 
@@ -161,7 +164,8 @@ Future daily syncs will join against the updated `hr_employees` table.
 | Magic link redirect fails | Add exact Pages URL to Supabase redirect URLs |
 | Daily sync fails | Check `HARVEY_TOKEN` secret; view Actions logs |
 | Empty dashboard | Run bulk import; verify `sync_metadata.max_date` in Supabase |
-| HR merge shows unmatched | Re-run `import_hr_excel.py` with latest Active List |
+| HR merge shows unmatched | Re-run `import_hr_excel.py` with latest Master-data.xlsx |
+| Adoption tab empty or errors | Run `supabase/master_data_adoption.sql` in SQL Editor, then re-import Master-data |
 | Dashboard totals differ from Harvey UI | Ensure exports use IST (default). Re-export and bulk re-import. See [`HARVEY_USAGE_DATA_ALIGNMENT.md`](HARVEY_USAGE_DATA_ALIGNMENT.md) |
 | Month-edge daily counts look wrong | Filter/group by `usage_date` (IST), not UTC date of `utc_time` |
 
@@ -176,7 +180,8 @@ Future daily syncs will join against the updated `hr_employees` table.
 | `compare_usage.py` | Validate API CSV vs Harvey UI xlsx |
 | `HARVEY_USAGE_DATA_ALIGNMENT.md` | UTC vs IST alignment context and verification |
 | `scripts/bulk_import_csv.py` | CSV → Supabase bulk upsert |
-| `scripts/import_hr_excel.py` | HR Excel → Supabase |
+| `scripts/import_hr_excel.py` | Master-data Excel → Supabase `hr_employees` |
+| `supabase/master_data_adoption.sql` | Adoption RPCs + extended `hr_employees` columns |
 | `index.html` | GitHub Pages entry point |
 | `dashboard_redesigned.html` | Same dashboard (local dev) |
 | `.github/workflows/daily-sync.yml` | Cron: fetch IST yesterday (5×/day for retries) |
