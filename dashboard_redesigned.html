@@ -1548,20 +1548,6 @@ function switchTab(tab) {
         loadAdoptionData();
     }
 }
-    const start = document.getElementById('filter-start-date').value || null;
-    const end = document.getElementById('filter-end-date').value || null;
-    const isFullRange = start === defaultDateRange.min && end === defaultDateRange.max;
-    return {
-        p_practices: arrayParam('practice'),
-        p_teams: arrayParam('team'),
-        p_locations: arrayParam('location'),
-        p_accesses: arrayParam('access'),
-        p_designations: arrayParam('designation'),
-        p_products: arrayParam('product'),
-        p_start_date: isFullRange ? null : start,
-        p_end_date: isFullRange ? null : end
-    };
-}
 
 function setDateRange(min, max) {
     defaultDateRange = { min, max };
