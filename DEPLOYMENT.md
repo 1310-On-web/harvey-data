@@ -21,7 +21,7 @@ This guide walks through going live with the free stack: **Supabase + GitHub Act
 3. Open **SQL Editor** and run in order:
    - [`supabase/schema.sql`](supabase/schema.sql)
    - [`supabase/functions.sql`](supabase/functions.sql)
-   - Remaining migrations in order (see `supabase/` folder), ending with [`supabase/master_data_adoption.sql`](supabase/master_data_adoption.sql) for adoption metrics
+   - Remaining migrations in order (see `supabase/` folder), ending with [`supabase/master_data_adoption.sql`](supabase/master_data_adoption.sql) and [`supabase/team_report.sql`](supabase/team_report.sql)
 
 ---
 
@@ -154,6 +154,17 @@ py -3 scripts/import_hr_excel.py --hr-file "Master-data.xlsx"
 
 Future daily syncs will join against the updated `hr_employees` table. Re-open the dashboard **Adoption** tab to see updated access and inactive-user metrics.
 
+### Team / Practice reports
+
+After running [`supabase/team_report.sql`](supabase/team_report.sql) in the Supabase SQL Editor:
+
+1. Open the dashboard **Reports** tab.
+2. Choose **Team report** (single team) or **Practice report** (all teams in a practice).
+3. Select practice, team (if applicable), and date range — or use presets (10 days, 30 days, 3 months).
+4. Click **Generate Report**, then **Download Excel** or **Download PDF**.
+
+Reports match the layout of `Report-Template.xlsx` and include adoption metrics for leadership.
+
 ---
 
 ## Troubleshooting
@@ -166,6 +177,7 @@ Future daily syncs will join against the updated `hr_employees` table. Re-open t
 | Empty dashboard | Run bulk import; verify `sync_metadata.max_date` in Supabase |
 | HR merge shows unmatched | Re-run `import_hr_excel.py` with latest Master-data.xlsx |
 | Adoption tab empty or errors | Run `supabase/master_data_adoption.sql` in SQL Editor, then re-import Master-data |
+| Reports tab fails to generate | Run `supabase/team_report.sql` in SQL Editor |
 | Dashboard totals differ from Harvey UI | Ensure exports use IST (default). Re-export and bulk re-import. See [`HARVEY_USAGE_DATA_ALIGNMENT.md`](HARVEY_USAGE_DATA_ALIGNMENT.md) |
 | Month-edge daily counts look wrong | Filter/group by `usage_date` (IST), not UTC date of `utc_time` |
 
@@ -182,6 +194,7 @@ Future daily syncs will join against the updated `hr_employees` table. Re-open t
 | `scripts/bulk_import_csv.py` | CSV → Supabase bulk upsert |
 | `scripts/import_hr_excel.py` | Master-data Excel → Supabase `hr_employees` |
 | `supabase/master_data_adoption.sql` | Adoption RPCs + extended `hr_employees` columns |
+| `supabase/team_report.sql` | Team/practice report RPC (`get_team_report_bundle`) |
 | `index.html` | GitHub Pages entry point |
 | `dashboard_redesigned.html` | Same dashboard (local dev) |
 | `.github/workflows/daily-sync.yml` | Cron: fetch IST yesterday (5×/day for retries) |

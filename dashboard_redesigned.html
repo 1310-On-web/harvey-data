@@ -11,6 +11,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="config.js"></script>
     <style>
         :root {
@@ -524,6 +527,164 @@
 
         [data-theme="dark"] .warning-badge {
             color: #fbbf24;
+        }
+
+        .report-form-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .report-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .report-form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .report-form-field label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .report-form-field select,
+        .report-form-field input[type="date"] {
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .report-type-toggle {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .report-preset-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .report-preset-btn {
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-panel);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .report-preset-btn.active {
+            background: var(--accent-gradient);
+            color: white;
+            border-color: transparent;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .report-preview-card {
+            padding: 32px;
+            background: #fff;
+            color: #0f172a;
+            border-radius: 12px;
+        }
+
+        [data-theme="dark"] .report-preview-card {
+            background: #fff;
+            color: #0f172a;
+        }
+
+        .report-preview-header h2 {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+
+        .report-preview-header p {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .report-preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .report-preview-grid { grid-template-columns: 1fr; }
+        }
+
+        .report-preview-section h4 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+
+        .report-summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+        }
+
+        .report-summary-row strong { font-weight: 600; }
+
+        .report-preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            margin-top: 12px;
+        }
+
+        .report-preview-table th,
+        .report-preview-table td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        .report-preview-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+        }
+
+        .report-preview-table td.num { text-align: right; }
+
+        .report-disclaimer {
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .report-empty {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-secondary);
         }
 
         .kpi-card {
@@ -1155,6 +1316,7 @@
         <nav class="dashboard-tabs" aria-label="Dashboard views">
             <button type="button" class="dashboard-tab active" data-tab="usage">Usage</button>
             <button type="button" class="dashboard-tab" data-tab="adoption">Adoption</button>
+            <button type="button" class="dashboard-tab" data-tab="reports">Reports</button>
         </nav>
 
         <div id="usage-tab-panel" class="tab-panel">
@@ -1489,6 +1651,50 @@
             </div>
         </section>
         </div>
+
+        <div id="reports-tab-panel" class="tab-panel" hidden>
+        <section class="glass-panel report-form-card">
+            <h3 style="font-size: 1.1rem; font-weight: 600;">Generate Harvey Usage Report</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Select practice, team (optional), and date range to build a leadership report.</p>
+            <div class="report-type-toggle">
+                <button type="button" class="report-preset-btn active" id="report-type-team" data-report-type="team">Team report</button>
+                <button type="button" class="report-preset-btn" id="report-type-practice" data-report-type="practice">Practice report (all teams)</button>
+            </div>
+            <div class="report-form-grid">
+                <div class="report-form-field">
+                    <label for="report-practice">Practice</label>
+                    <select id="report-practice"><option value="">— Select practice —</option></select>
+                </div>
+                <div class="report-form-field">
+                    <label for="report-team">Team</label>
+                    <select id="report-team"><option value="">— Select team —</option></select>
+                </div>
+                <div class="report-form-field">
+                    <label for="report-start-date">Start date</label>
+                    <input type="date" id="report-start-date">
+                </div>
+                <div class="report-form-field">
+                    <label for="report-end-date">End date</label>
+                    <input type="date" id="report-end-date">
+                </div>
+            </div>
+            <div class="report-preset-group">
+                <button type="button" class="report-preset-btn" data-report-days="10">Last 10 days</button>
+                <button type="button" class="report-preset-btn" data-report-days="30">Last 30 days</button>
+                <button type="button" class="report-preset-btn" data-report-days="90">Last 3 months</button>
+            </div>
+            <div class="report-actions">
+                <button type="button" class="btn-primary" id="generate-report-btn">Generate Report</button>
+                <button type="button" class="btn-export" id="download-excel-btn" disabled>Download Excel</button>
+                <button type="button" class="btn-export" id="download-pdf-btn" disabled>Download PDF</button>
+            </div>
+        </section>
+
+        <section class="glass-panel" style="padding: 24px; margin-top: 24px;">
+            <div id="report-preview-placeholder" class="report-empty">Configure options above and click Generate Report.</div>
+            <div id="report-preview" class="report-preview-card" style="display:none;"></div>
+        </section>
+        </div>
     </main>
 </div>
 
@@ -1510,6 +1716,9 @@ let allInactiveUsers = [];
 let allPendingAccess = [];
 let inactiveUsersLimit = 10;
 let pendingAccessLimit = 10;
+let lastReportBundle = null;
+let reportScope = 'team';
+let reportTeamsByPractice = {};
 
 function showDashboardError(msg) {
     const el = document.getElementById("dashboard-error");
@@ -1560,8 +1769,12 @@ function switchTab(tab) {
     });
     document.getElementById('usage-tab-panel').hidden = tab !== 'usage';
     document.getElementById('adoption-tab-panel').hidden = tab !== 'adoption';
+    document.getElementById('reports-tab-panel').hidden = tab !== 'reports';
     if (tab === 'adoption' && !lastAdoptionBundle) {
         loadAdoptionData();
+    }
+    if (tab === 'reports') {
+        initReportForm();
     }
 }
 
@@ -1707,7 +1920,7 @@ if (document.getElementById('theme-toggle-alt')) {
 async function loadDashboard() {
     setLoading(true);
     try {
-        await Promise.all([buildFilters(), loadSyncInfo()]);
+        await Promise.all([buildFilters(), loadSyncInfo(), loadReportFilterOptions()]);
         await applyFilters();
     } catch (err) {
         console.error(err);
@@ -1874,7 +2087,7 @@ async function applyFilters() {
     try {
         if (activeTab === 'adoption') {
             await loadAdoptionData();
-        } else {
+        } else if (activeTab !== 'reports') {
             await loadUsageData();
         }
     } catch (err) {
@@ -2385,6 +2598,352 @@ document.getElementById('export-pending-btn').addEventListener('click', () => {
         'harvey_pending_access'
     );
 });
+
+// ── REPORTS ─────────────────────────────────────────────────
+async function loadReportFilterOptions() {
+    const { data, error } = await supabaseClient.rpc('get_adoption_filter_options');
+    if (error) throw error;
+    reportTeamsByPractice = data.teams_by_practice || {};
+    const practices = data.practices || [];
+    const practiceEl = document.getElementById('report-practice');
+    practiceEl.innerHTML = '<option value="">— Select practice —</option>'
+        + practices.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function initReportForm() {
+    if (defaultDateRange.max) {
+        document.getElementById('report-end-date').value = defaultDateRange.max;
+        document.getElementById('report-end-date').max = defaultDateRange.max;
+        document.getElementById('report-end-date').min = defaultDateRange.min;
+        document.getElementById('report-start-date').max = defaultDateRange.max;
+        document.getElementById('report-start-date').min = defaultDateRange.min;
+        setReportPresetDays(10);
+    }
+    updateReportTeamOptions();
+    updateReportTeamFieldState();
+}
+
+function updateReportTeamOptions() {
+    const practice = document.getElementById('report-practice').value;
+    const teamEl = document.getElementById('report-team');
+    const teams = reportTeamsByPractice[practice] || [];
+    teamEl.innerHTML = '<option value="">— Select team —</option>'
+        + teams.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+}
+
+function updateReportTeamFieldState() {
+    const teamEl = document.getElementById('report-team');
+    const isPractice = reportScope === 'practice';
+    teamEl.disabled = isPractice;
+    if (isPractice) teamEl.value = '';
+}
+
+function setReportPresetDays(days) {
+    const end = document.getElementById('report-end-date').value || defaultDateRange.max;
+    if (!end) return;
+    const endDate = new Date(end + 'T00:00:00');
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - (days - 1));
+    const min = defaultDateRange.min;
+    const startStr = startDate.toISOString().slice(0, 10);
+    document.getElementById('report-start-date').value = (min && startStr < min) ? min : startStr;
+    document.querySelectorAll('[data-report-days]').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.reportDays) === days);
+    });
+}
+
+function reportFilename(ext) {
+    const meta = lastReportBundle?.meta || {};
+    const practice = (meta.practice || 'practice').replace(/[^\w\-]+/g, '_');
+    const team = meta.scope === 'team' ? (meta.team || 'team').replace(/[^\w\-]+/g, '_') : 'AllTeams';
+    return `Harvey_Report_${practice}_${team}_${meta.start_date}_${meta.end_date}.${ext}`;
+}
+
+function renderReportPreview(bundle) {
+    const s = bundle.summary || {};
+    const meta = bundle.meta || {};
+    const features = bundle.features || [];
+    const members = bundle.members_with_access || [];
+    const without = bundle.members_without_access || [];
+    const showTeamCol = meta.scope === 'practice';
+
+    const summaryRows = [
+        ['Total Members', s.total_members],
+        ['Total Team Members with Access', s.with_access],
+        ['Members Who Used Harvey', s.used_harvey],
+        ['Members Who Did NOT Use Harvey', s.not_used],
+        ['Total Activity', s.total_activity],
+        ['Top User', `${s.top_user_name} (${s.top_user_actions} actions)`],
+        ['Adoption Rate', `${s.adoption_rate}%`],
+        ['Inactive Users (access, no usage)', s.inactive_count],
+        ['Access Pending', s.access_pending],
+        ['Avg Actions per Active User', s.avg_actions_per_active],
+        ['Access Coverage', `${s.access_coverage_pct}%`],
+        ['Revoked', s.revoked_count],
+        ['Resigned', s.resigned_count]
+    ];
+
+    let html = `<div class="report-preview-header">
+        <h2>${escapeHtml(meta.title)}</h2>
+        <p>Harvey Usage Report · ${escapeHtml(meta.period_label)} · Generated ${escapeHtml(meta.generated_at)}</p>
+    </div>
+    <div class="report-preview-grid">
+        <div class="report-preview-section">
+            <h4>Summary</h4>
+            ${summaryRows.map(([label, val]) => `<div class="report-summary-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(val ?? '—'))}</strong></div>`).join('')}
+        </div>
+        <div class="report-preview-section">
+            <h4>Usage by Feature</h4>
+            ${features.map(f => `<div class="report-summary-row"><span>${escapeHtml(f.label)}</span><strong>${Number(f.count || 0).toLocaleString()}</strong></div>`).join('')}
+        </div>
+    </div>
+    <div class="report-preview-section">
+        <h4>Members with Access — Detail</h4>
+        <table class="report-preview-table"><thead><tr>
+            <th>Name</th><th>Designation</th><th>Email</th>${showTeamCol ? '<th>Team</th>' : ''}<th>Status</th>
+            <th>Total Activity</th><th>Assistant Threads</th><th>Follow-ups</th><th>Workflow Runs</th>
+            <th>Playbook Runs</th><th>Review Table</th><th>Word Add-in</th>
+        </tr></thead><tbody>
+        ${members.map(m => `<tr>
+            <td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.designation)}</td>
+            <td style="font-family:monospace;font-size:0.75rem">${escapeHtml(m.user_email || m.email)}</td>
+            ${showTeamCol ? `<td>${escapeHtml(m.team)}</td>` : ''}
+            <td>${escapeHtml(m.status)}</td>
+            <td class="num">${m.total_activity}</td><td class="num">${m.assistant_threads}</td>
+            <td class="num">${m.followups}</td><td class="num">${m.workflow_runs}</td>
+            <td class="num">${m.playbook_runs}</td><td class="num">${m.review_table_columns}</td>
+            <td class="num">${m.word_addin}</td>
+        </tr>`).join('')}
+        </tbody></table>
+    </div>`;
+
+    if (without.length) {
+        html += `<div class="report-preview-section" style="margin-top:24px">
+            <h4>Members Without Access</h4>
+            <table class="report-preview-table"><thead><tr>
+                <th>Name</th><th>Designation</th><th>Email</th><th>Status</th>
+            </tr></thead><tbody>
+            ${without.map(m => `<tr>
+                <td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.designation)}</td>
+                <td style="font-family:monospace;font-size:0.75rem">${escapeHtml(m.email)}</td>
+                <td>${escapeHtml(m.status_note)}</td>
+            </tr>`).join('')}
+            </tbody></table>
+        </div>`;
+    }
+
+    html += `<p class="report-disclaimer">${escapeHtml(bundle.disclaimer || '')}</p>`;
+
+    document.getElementById('report-preview-placeholder').style.display = 'none';
+    const preview = document.getElementById('report-preview');
+    preview.style.display = 'block';
+    preview.innerHTML = html;
+}
+
+async function generateReport() {
+    const practice = document.getElementById('report-practice').value;
+    const team = reportScope === 'team' ? document.getElementById('report-team').value : null;
+    const start = document.getElementById('report-start-date').value;
+    const end = document.getElementById('report-end-date').value;
+
+    if (!practice) { showDashboardError('Please select a practice.'); return; }
+    if (reportScope === 'team' && !team) { showDashboardError('Please select a team for team report.'); return; }
+    if (!start || !end) { showDashboardError('Please select start and end dates.'); return; }
+    if (start > end) { showDashboardError('Start date must be before end date.'); return; }
+
+    setLoading(true);
+    showDashboardError('');
+    try {
+        const { data, error } = await supabaseClient.rpc('get_team_report_bundle', {
+            p_practice: practice,
+            p_team: team || null,
+            p_start_date: start,
+            p_end_date: end
+        });
+        if (error) throw error;
+        lastReportBundle = data;
+        renderReportPreview(data);
+        document.getElementById('download-excel-btn').disabled = false;
+        document.getElementById('download-pdf-btn').disabled = false;
+    } catch (err) {
+        console.error(err);
+        showDashboardError('Failed to generate report: ' + (err.message || err));
+    } finally {
+        setLoading(false);
+    }
+}
+
+async function buildReportWorkbook(bundle) {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Report');
+    const meta = bundle.meta || {};
+    const s = bundle.summary || {};
+    const features = bundle.features || [];
+    const members = bundle.members_with_access || [];
+    const without = bundle.members_without_access || [];
+    const showTeam = meta.scope === 'practice';
+
+    const titleFont = { bold: true, size: 14 };
+    const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    const thinBorder = {
+        top: { style: 'thin' }, left: { style: 'thin' },
+        bottom: { style: 'thin' }, right: { style: 'thin' }
+    };
+
+    ws.mergeCells('A1:K1');
+    ws.getCell('A1').value = meta.title;
+    ws.getCell('A1').font = titleFont;
+    ws.mergeCells('A2:K2');
+    ws.getCell('A2').value = `Harvey Usage Report · ${meta.period_label} · Generated ${meta.generated_at}`;
+
+    ws.getCell('A4').value = 'SUMMARY';
+    ws.getCell('A4').font = { bold: true };
+    ws.getCell('D4').value = 'USAGE BY FEATURE';
+    ws.getCell('D4').font = { bold: true };
+
+    const summaryLabels = [
+        ['Total Members', s.total_members],
+        ['Total Team Members with Access', s.with_access],
+        ['Members Who Used Harvey', s.used_harvey],
+        ['Members Who Did NOT Use Harvey', s.not_used],
+        ['Total Activity', s.total_activity],
+        ['Top User', `${s.top_user_name} (${s.top_user_actions} actions)`],
+        ['Adoption Rate', `${s.adoption_rate}%`],
+        ['Inactive Users', s.inactive_count],
+        ['Access Pending', s.access_pending],
+        ['Avg Actions / Active User', s.avg_actions_per_active],
+        ['Access Coverage', `${s.access_coverage_pct}%`]
+    ];
+    summaryLabels.forEach((row, i) => {
+        ws.getCell(`A${5 + i}`).value = row[0];
+        ws.getCell(`B${5 + i}`).value = row[1];
+    });
+    features.forEach((f, i) => {
+        ws.getCell(`D${5 + i}`).value = f.label;
+        ws.getCell(`E${5 + i}`).value = f.count;
+    });
+
+    let row = 5 + Math.max(summaryLabels.length, features.length) + 2;
+    ws.getCell(`A${row}`).value = `${(meta.team || meta.practice).toUpperCase()} MEMBERS WITH ACCESS — DETAIL`;
+    ws.getCell(`A${row}`).font = { bold: true };
+    row += 1;
+
+    const headers = ['Name', 'Designation', 'Email', 'Status'];
+    if (showTeam) headers.splice(3, 0, 'Team');
+    headers.push('Total Activity', 'Assistant Threads', 'Follow-ups Asked', 'Workflow Agent Runs', 'Playbook Runs', 'Review Table Columns', 'Word Add-in');
+
+    headers.forEach((h, c) => {
+        const cell = ws.getCell(row, c + 1);
+        cell.value = h;
+        cell.font = { bold: true };
+        cell.fill = headerFill;
+        cell.border = thinBorder;
+    });
+    row += 1;
+
+    members.forEach(m => {
+        const vals = [m.name, m.designation, m.user_email || m.email, m.status];
+        if (showTeam) vals.splice(3, 0, m.team);
+        vals.push(m.total_activity, m.assistant_threads, m.followups, m.workflow_runs, m.playbook_runs, m.review_table_columns, m.word_addin);
+        vals.forEach((v, c) => {
+            const cell = ws.getCell(row, c + 1);
+            cell.value = v;
+            cell.border = thinBorder;
+            if (c >= vals.length - 7) cell.alignment = { horizontal: 'right' };
+        });
+        row += 1;
+    });
+
+    if (without.length) {
+        row += 2;
+        ws.getCell(`A${row}`).value = 'MEMBERS WITHOUT ACCESS';
+        ws.getCell(`A${row}`).font = { bold: true };
+        row += 1;
+        ['Name', 'Designation', 'Email', 'Status'].forEach((h, c) => {
+            const cell = ws.getCell(row, c + 1);
+            cell.value = h;
+            cell.font = { bold: true };
+            cell.fill = headerFill;
+            cell.border = thinBorder;
+        });
+        row += 1;
+        without.forEach(m => {
+            [m.name, m.designation, m.email, m.status_note].forEach((v, c) => {
+                ws.getCell(row, c + 1).value = v;
+                ws.getCell(row, c + 1).border = thinBorder;
+            });
+            row += 1;
+        });
+    }
+
+    row += 2;
+    ws.mergeCells(`A${row}:K${row}`);
+    ws.getCell(`A${row}`).value = bundle.disclaimer || '';
+    ws.getCell(`A${row}`).font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
+
+    ws.columns.forEach(col => { col.width = 18; });
+    ws.getColumn(3).width = 32;
+
+    const buffer = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), reportFilename('xlsx'));
+}
+
+async function downloadReportExcel() {
+    if (!lastReportBundle) return;
+    try {
+        await buildReportWorkbook(lastReportBundle);
+    } catch (err) {
+        console.error(err);
+        showDashboardError('Excel export failed: ' + (err.message || err));
+    }
+}
+
+async function downloadReportPdf() {
+    if (!lastReportBundle) return;
+    const el = document.getElementById('report-preview');
+    try {
+        await html2pdf().set({
+            margin: 10,
+            filename: reportFilename('pdf'),
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        }).from(el).save();
+    } catch (err) {
+        console.error(err);
+        showDashboardError('PDF export failed: ' + (err.message || err));
+    }
+}
+
+document.getElementById('report-practice').addEventListener('change', () => {
+    updateReportTeamOptions();
+});
+
+document.getElementById('report-type-team').addEventListener('click', () => {
+    reportScope = 'team';
+    document.getElementById('report-type-team').classList.add('active');
+    document.getElementById('report-type-practice').classList.remove('active');
+    updateReportTeamFieldState();
+});
+
+document.getElementById('report-type-practice').addEventListener('click', () => {
+    reportScope = 'practice';
+    document.getElementById('report-type-practice').classList.add('active');
+    document.getElementById('report-type-team').classList.remove('active');
+    updateReportTeamFieldState();
+});
+
+document.querySelectorAll('[data-report-days]').forEach(btn => {
+    btn.addEventListener('click', () => setReportPresetDays(Number(btn.dataset.reportDays)));
+});
+
+document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+document.getElementById('download-excel-btn').addEventListener('click', downloadReportExcel);
+document.getElementById('download-pdf-btn').addEventListener('click', downloadReportPdf);
 
 // Filter handlers
 document.getElementById('apply-filters-btn').addEventListener('click', () => applyFilters());
