@@ -128,7 +128,12 @@ BEGIN
           AND team IS NOT NULL AND team <> ''
         GROUP BY 1
         HAVING COUNT(*) FILTER (WHERE access_state IN ('granted', 'pending')) > 0
-        ORDER BY value ASC, label
+          AND ROUND(
+                100.0 * COUNT(*) FILTER (WHERE access_state = 'granted')::numeric
+                / NULLIF(COUNT(*) FILTER (WHERE access_state IN ('granted', 'pending'))::numeric, 0),
+                1
+              ) > 0
+        ORDER BY value DESC, label
         LIMIT 15
     ),
     team_adoption AS (
@@ -144,7 +149,7 @@ BEGIN
           AND team IS NOT NULL AND team <> ''
         GROUP BY 1
         HAVING COUNT(*) FILTER (WHERE access_state = 'granted') > 0
-        ORDER BY value ASC, label
+        ORDER BY value DESC, label
         LIMIT 15
     ),
     practice_access AS (
@@ -160,7 +165,12 @@ BEGIN
           AND practice_function IS NOT NULL AND practice_function <> ''
         GROUP BY 1
         HAVING COUNT(*) FILTER (WHERE access_state IN ('granted', 'pending')) > 0
-        ORDER BY value ASC, label
+          AND ROUND(
+                100.0 * COUNT(*) FILTER (WHERE access_state = 'granted')::numeric
+                / NULLIF(COUNT(*) FILTER (WHERE access_state IN ('granted', 'pending'))::numeric, 0),
+                1
+              ) > 0
+        ORDER BY value DESC, label
         LIMIT 15
     ),
     funnel AS (
