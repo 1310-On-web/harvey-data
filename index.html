@@ -1947,6 +1947,7 @@ async function refreshDashboard() {
     if (!btn) return;
     btn.disabled = true;
     btn.classList.add('refreshing');
+    setLoading(true);
     showDashboardError('');
     try {
         try {
@@ -1955,17 +1956,14 @@ async function refreshDashboard() {
             console.warn('Cache refresh skipped:', cacheErr);
         }
         await loadSyncInfo();
-        if (activeTab === 'adoption') {
-            await loadAdoptionData();
-        } else if (activeTab !== 'reports') {
-            await loadUsageData();
-        }
+        await reloadDashboardData();
     } catch (err) {
         console.error(err);
         showDashboardError('Failed to refresh: ' + (err.message || err));
     } finally {
         btn.disabled = false;
         btn.classList.remove('refreshing');
+        setLoading(false);
     }
 }
 
@@ -2142,11 +2140,7 @@ async function applyFilters() {
     setLoading(true);
     showDashboardError("");
     try {
-        if (activeTab === 'adoption') {
-            await loadAdoptionData();
-        } else if (activeTab !== 'reports') {
-            await loadUsageData();
-        }
+        await reloadDashboardData();
     } catch (err) {
         console.error(err);
         showDashboardError("Failed to load data: " + (err.message || err));
@@ -2154,6 +2148,10 @@ async function applyFilters() {
         setLoading(false);
         filtersBusy = false;
     }
+}
+
+async function reloadDashboardData() {
+    await Promise.all([loadUsageData(), loadAdoptionData()]);
 }
 
 async function loadUsageData() {
@@ -2644,15 +2642,11 @@ document.querySelector('.dashboard-tabs').addEventListener('click', (e) => {
     const tab = tabBtn.dataset.tab;
     if (tab === activeTab) return;
     switchTab(tab);
-    if (tab === 'adoption') {
-        if (lastAdoptionBundle) {
-            requestAnimationFrame(() => renderAdoptionCharts(lastAdoptionBundle));
-        } else {
-            loadAdoptionData();
-        }
-    } else if (tab === 'usage' && lastChartBundle) {
-        requestAnimationFrame(() => renderCharts(lastChartBundle));
-    }
+    requestAnimationFrame(() => {
+        Object.values(charts).forEach(chart => {
+            try { chart.resize(); } catch (_) { /* chart may be destroyed */ }
+        });
+    });
 });
 
 document.getElementById('inactive-n-group').addEventListener('click', (e) => {
