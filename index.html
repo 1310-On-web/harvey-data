@@ -457,6 +457,21 @@
             transform: translateY(-1px);
         }
 
+        .theme-toggle:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .theme-toggle.refreshing #refresh-icon {
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         .kpi-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1305,6 +1320,10 @@
                 <div id="dashboard-error" style="display:none;margin-top:8px;padding:10px 14px;border-radius:8px;background:rgba(220,38,38,0.1);color:#dc2626;font-size:0.85rem;"></div>
             </div>
             <div class="topbar-actions">
+                <button class="theme-toggle" id="refresh-btn" type="button" title="Refresh dashboard data">
+                    <span id="refresh-icon">↻</span>
+                    <span>Refresh</span>
+                </button>
                 <button class="theme-toggle" id="theme-toggle-alt" type="button">
                     <span id="theme-icon-alt">🌙</span>
                     <span id="theme-label-alt">Dark mode</span>
@@ -1912,6 +1931,33 @@ if (document.getElementById('theme-toggle-alt')) {
     });
 }
 
+async function refreshDashboard() {
+    if (filtersBusy) return;
+    const btn = document.getElementById('refresh-btn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.classList.add('refreshing');
+    showDashboardError('');
+    try {
+        await loadSyncInfo();
+        if (activeTab === 'adoption') {
+            await loadAdoptionData();
+        } else if (activeTab !== 'reports') {
+            await loadUsageData();
+        }
+    } catch (err) {
+        console.error(err);
+        showDashboardError('Failed to refresh: ' + (err.message || err));
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('refreshing');
+    }
+}
+
+if (document.getElementById('refresh-btn')) {
+    document.getElementById('refresh-btn').addEventListener('click', () => refreshDashboard());
+}
+
 // ── DATA LOADING ────────────────────────────────────────────
 async function loadDashboard() {
     setLoading(true);
@@ -2337,8 +2383,7 @@ function sortChartItemsDesc(items) {
 
 function pctBarChart(id, items, horizontal) {
     destroyChart(id);
-    const sorted = sortChartItemsDesc(items);
-    const displayItems = horizontal ? sorted.slice().reverse() : sorted;
+    const displayItems = sortChartItemsDesc(items);
     const minVal = displayItems.length
         ? Math.min(...displayItems.map(i => Number(i.value) || 0))
         : 0;
@@ -2350,7 +2395,7 @@ function pctBarChart(id, items, horizontal) {
                 label: '%',
                 data: displayItems.map(i => i.value),
                 backgroundColor: displayItems.map(i =>
-                    Number(i.value) === minVal && displayItems.length > 1 && Number(minVal) < Number(sorted[0]?.value || 0)
+                    Number(i.value) === minVal && displayItems.length > 1 && Number(minVal) < Number(displayItems[0]?.value || 0)
                         ? '#ef4444' : '#3b82f6'
                 )
             }]
@@ -2371,8 +2416,8 @@ function pctBarChart(id, items, horizontal) {
                 }
             },
             scales: {
-                x: { max: horizontal ? undefined : 100 },
-                y: { max: horizontal ? 100 : undefined, beginAtZero: true }
+                x: { max: horizontal ? undefined : 100, beginAtZero: true },
+                y: { max: horizontal ? 100 : undefined, beginAtZero: true, reverse: !!horizontal }
             }
         }
     });

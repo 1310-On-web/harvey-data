@@ -471,7 +471,7 @@ BEGIN
                 COUNT(*)::bigint AS actions,
                 COALESCE(SUM(file_count), 0)::bigint AS files
             FROM usage_events WHERE user_email IS NOT NULL
-            GROUP BY user_email ORDER BY actions DESC LIMIT 500
+            GROUP BY user_email ORDER BY actions DESC LIMIT 2000
         ) t
     ), '[]'::json) INTO v_tops;
 

@@ -172,7 +172,7 @@ BEGIN
                 COUNT(*)::bigint AS actions,
                 COALESCE(SUM(file_count), 0)::bigint AS files
             FROM usage_events WHERE user_email IS NOT NULL
-            GROUP BY user_email ORDER BY actions DESC LIMIT 500
+            GROUP BY user_email ORDER BY actions DESC LIMIT 2000
         ) t
     ), '[]'::json) INTO v_tops;
 
@@ -391,7 +391,7 @@ BEGIN
               AND (p_start_date IS NULL OR u.usage_date >= p_start_date)
               AND (p_end_date IS NULL OR u.usage_date <= p_end_date)
               AND user_email IS NOT NULL
-            GROUP BY user_email ORDER BY actions DESC LIMIT 500
+            GROUP BY user_email ORDER BY actions DESC LIMIT 2000
         ) t
     ), '[]'::json);
 END;
@@ -641,7 +641,7 @@ BEGIN
                 files::text
             ) AS line
         FROM ranked
-        LIMIT 501
+        LIMIT 2001
     ) sub;
 
     RETURN COALESCE(csv_text, '');
