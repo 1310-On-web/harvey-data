@@ -1949,6 +1949,11 @@ async function refreshDashboard() {
     btn.classList.add('refreshing');
     showDashboardError('');
     try {
+        try {
+            await supabaseClient.rpc('refresh_dashboard_cache');
+        } catch (cacheErr) {
+            console.warn('Cache refresh skipped:', cacheErr);
+        }
         await loadSyncInfo();
         if (activeTab === 'adoption') {
             await loadAdoptionData();
@@ -2385,17 +2390,35 @@ function saveAdoptionChartCsv(bundleKey, filename, labelHeader, valueHeader) {
 }
 
 function sortChartItemsDesc(items) {
-    return [...items].sort((a, b) => {
-        const diff = (Number(b.value) || 0) - (Number(a.value) || 0);
+    return normalizeChartItems(items).sort((a, b) => {
+        const diff = b.value - a.value;
         return diff !== 0 ? diff : String(a.label).localeCompare(String(b.label));
     });
 }
 
+function normalizeChartItems(items) {
+    const list = Array.isArray(items) ? items : [];
+    return list.map(item => {
+        const raw = item?.value ?? item?.percent ?? item?.pct ?? item?.count ?? 0;
+        let value = Number(raw);
+        if (!Number.isFinite(value)) value = 0;
+        if (value > 0 && value <= 1) value = Math.round(value * 1000) / 10;
+        return {
+            label: item?.label ?? item?.team ?? '—',
+            value
+        };
+    });
+}
+
+function preparePctChartItems(items, limit = 15) {
+    return sortChartItemsDesc(items).slice(0, limit);
+}
+
 function pctBarChart(id, items, horizontal) {
     destroyChart(id);
-    const displayItems = sortChartItemsDesc(items);
+    const displayItems = preparePctChartItems(items);
     const minVal = displayItems.length
-        ? Math.min(...displayItems.map(i => Number(i.value) || 0))
+        ? Math.min(...displayItems.map(i => i.value))
         : 0;
     const canvas = document.getElementById(id);
     const body = canvas?.closest('.chart-body');
@@ -2410,7 +2433,7 @@ function pctBarChart(id, items, horizontal) {
                 label: '%',
                 data: displayItems.map(i => i.value),
                 backgroundColor: displayItems.map(i =>
-                    Number(i.value) === minVal && displayItems.length > 1 && Number(minVal) < Number(displayItems[0]?.value || 0)
+                    i.value === minVal && displayItems.length > 1 && minVal < displayItems[0].value
                         ? '#ef4444' : '#3b82f6'
                 )
             }]
@@ -2421,7 +2444,7 @@ function pctBarChart(id, items, horizontal) {
             indexAxis: horizontal ? 'y' : 'x',
             layout: {
                 padding: horizontal
-                    ? { top: 12, right: 20, bottom: 12, left: 8 }
+                    ? { top: 12, right: 24, bottom: 12, left: 8 }
                     : { top: 8, right: 12, bottom: 8, left: 8 }
             },
             plugins: {
@@ -2432,12 +2455,15 @@ function pctBarChart(id, items, horizontal) {
                     offset: horizontal ? 4 : 2,
                     color: chartLabelColor(),
                     font: { size: 11, weight: '600' },
-                    formatter: v => `${v}%`
+                    formatter: v => `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`
                 }
             },
-            scales: {
-                x: { max: horizontal ? undefined : 100, beginAtZero: true },
-                y: { max: horizontal ? 100 : undefined, beginAtZero: true }
+            scales: horizontal ? {
+                x: { beginAtZero: true, max: 100 },
+                y: { beginAtZero: true }
+            } : {
+                x: { beginAtZero: true, max: 100 },
+                y: { beginAtZero: true }
             }
         }
     });
@@ -2618,6 +2644,15 @@ document.querySelector('.dashboard-tabs').addEventListener('click', (e) => {
     const tab = tabBtn.dataset.tab;
     if (tab === activeTab) return;
     switchTab(tab);
+    if (tab === 'adoption') {
+        if (lastAdoptionBundle) {
+            requestAnimationFrame(() => renderAdoptionCharts(lastAdoptionBundle));
+        } else {
+            loadAdoptionData();
+        }
+    } else if (tab === 'usage' && lastChartBundle) {
+        requestAnimationFrame(() => renderCharts(lastChartBundle));
+    }
 });
 
 document.getElementById('inactive-n-group').addEventListener('click', (e) => {

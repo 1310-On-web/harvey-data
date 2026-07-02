@@ -124,15 +124,9 @@ BEGIN
                 1
             ) AS value
         FROM hr_enriched
-        WHERE access_state IN ('granted', 'pending')
-          AND team IS NOT NULL AND team <> ''
+        WHERE team IS NOT NULL AND team <> ''
         GROUP BY 1
         HAVING COUNT(*) FILTER (WHERE access_state IN ('granted', 'pending')) > 0
-          AND ROUND(
-                100.0 * COUNT(*) FILTER (WHERE access_state = 'granted')::numeric
-                / NULLIF(COUNT(*) FILTER (WHERE access_state IN ('granted', 'pending'))::numeric, 0),
-                1
-              ) > 0
         ORDER BY value DESC, label
         LIMIT 15
     ),
@@ -242,9 +236,24 @@ BEGIN
     )
     SELECT json_build_object(
         'kpis', (SELECT row_to_json(k) FROM kpis k),
-        'team_access_coverage', (SELECT COALESCE(json_agg(json_build_object('label', label, 'value', value)), '[]'::json) FROM team_access),
-        'team_adoption_rate', (SELECT COALESCE(json_agg(json_build_object('label', label, 'value', value)), '[]'::json) FROM team_adoption),
-        'practice_access_coverage', (SELECT COALESCE(json_agg(json_build_object('label', label, 'value', value)), '[]'::json) FROM practice_access),
+        'team_access_coverage', (
+            SELECT COALESCE(
+                json_agg(json_build_object('label', label, 'value', value) ORDER BY value DESC, label),
+                '[]'::json
+            ) FROM team_access
+        ),
+        'team_adoption_rate', (
+            SELECT COALESCE(
+                json_agg(json_build_object('label', label, 'value', value) ORDER BY value DESC, label),
+                '[]'::json
+            ) FROM team_adoption
+        ),
+        'practice_access_coverage', (
+            SELECT COALESCE(
+                json_agg(json_build_object('label', label, 'value', value) ORDER BY value DESC, label),
+                '[]'::json
+            ) FROM practice_access
+        ),
         'access_funnel', (SELECT COALESCE(json_agg(json_build_object('label', label, 'value', value)), '[]'::json) FROM funnel),
         'inactive_users', (SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) FROM inactive_users t),
         'pending_access', (SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) FROM pending_access t),
@@ -486,3 +495,5 @@ BEGIN
     WHERE id = 1;
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION refresh_dashboard_cache() TO authenticated;
