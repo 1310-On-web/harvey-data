@@ -1750,6 +1750,59 @@ let lastReportBundle = null;
 let reportScope = 'team';
 let reportTeamsByPractice = {};
 let reportFormInitialized = false;
+let filterOptionsLoaded = false;
+const FILTER_STORAGE_KEY = 'harvey_dashboard_filters';
+
+function cloneFilterMap(source) {
+    return {
+        practice: [...(source.practice || [])],
+        team: [...(source.team || [])],
+        location: [...(source.location || [])],
+        access: [...(source.access || [])],
+        designation: [...(source.designation || [])],
+        product: [...(source.product || [])]
+    };
+}
+
+function persistFilterState() {
+    try {
+        sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
+            activeFilters,
+            pendingFilters,
+            startDate: document.getElementById('filter-start-date').value,
+            endDate: document.getElementById('filter-end-date').value
+        }));
+    } catch (_) { /* storage may be unavailable */ }
+}
+
+function restoreFilterState() {
+    try {
+        const raw = sessionStorage.getItem(FILTER_STORAGE_KEY);
+        if (!raw) return false;
+        const saved = JSON.parse(raw);
+        if (saved.activeFilters) activeFilters = cloneFilterMap(saved.activeFilters);
+        if (saved.pendingFilters) pendingFilters = cloneFilterMap(saved.pendingFilters);
+        if (saved.startDate && saved.endDate) restoreSavedDateRange(saved);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function clearPersistedFilterState() {
+    try { sessionStorage.removeItem(FILTER_STORAGE_KEY); } catch (_) {}
+}
+
+function validateFilterSelections() {
+    ['practice', 'location', 'access', 'designation', 'product'].forEach(key => {
+        const opts = filterOptions[key] || [];
+        pendingFilters[key] = (pendingFilters[key] || []).filter(v => opts.includes(v));
+        activeFilters[key] = (activeFilters[key] || []).filter(v => opts.includes(v));
+    });
+    const teamOpts = getTeamOptionsForPractices(pendingFilters.practice);
+    pendingFilters.team = (pendingFilters.team || []).filter(t => teamOpts.includes(t));
+    activeFilters.team = (activeFilters.team || []).filter(t => teamOpts.includes(t));
+}
 
 function showDashboardError(msg) {
     const el = document.getElementById("dashboard-error");
@@ -1803,20 +1856,35 @@ function switchTab(tab) {
     document.getElementById('reports-tab-panel').hidden = tab !== 'reports';
 }
 
-function setDateRange(min, max) {
+function setDateRangeBounds(min, max) {
     defaultDateRange = { min, max };
     const startEl = document.getElementById('filter-start-date');
     const endEl = document.getElementById('filter-end-date');
     if (min) {
         startEl.min = min;
         startEl.max = max;
-        startEl.value = min;
     }
     if (max) {
         endEl.min = min;
         endEl.max = max;
-        endEl.value = max;
     }
+}
+
+function setDateRange(min, max) {
+    setDateRangeBounds(min, max);
+    const startEl = document.getElementById('filter-start-date');
+    const endEl = document.getElementById('filter-end-date');
+    if (min) startEl.value = min;
+    if (max) endEl.value = max;
+}
+
+function restoreSavedDateRange(saved) {
+    if (!saved?.startDate || !saved?.endDate) return false;
+    const startEl = document.getElementById('filter-start-date');
+    const endEl = document.getElementById('filter-end-date');
+    startEl.value = saved.startDate;
+    endEl.value = saved.endDate;
+    return true;
 }
 
 function setLoading(isLoading) {
@@ -1994,7 +2062,12 @@ async function loadSyncInfo() {
     document.getElementById("sync-banner").textContent =
         `Data through: ${maxDate} · ${rowCount} records`;
     if (minDate && maxDate && maxDate !== "—") {
-        setDateRange(minDate, maxDate);
+        setDateRangeBounds(minDate, maxDate);
+        const startEl = document.getElementById('filter-start-date');
+        const endEl = document.getElementById('filter-end-date');
+        if (!startEl.value || !endEl.value) {
+            setDateRange(minDate, maxDate);
+        }
     }
 }
 
@@ -2010,7 +2083,15 @@ async function buildFilters() {
         designation: data.designations || [],
         product: data.products || []
     };
-    resetFilterSelections(true);
+
+    if (!filterOptionsLoaded) {
+        const restored = restoreFilterState();
+        if (!restored) resetFilterSelections(true);
+        filterOptionsLoaded = true;
+    } else {
+        validateFilterSelections();
+    }
+
     renderAllFilterChecklists();
 }
 
@@ -2082,8 +2163,7 @@ function renderAllFilterChecklists(options = {}) {
     } else if (allowEmptyTeams) {
         pendingFilters.team = pendingFilters.team.filter(t => teamValues.includes(t));
     } else {
-        const validTeams = pendingFilters.team.filter(t => teamValues.includes(t));
-        pendingFilters.team = validTeams.length ? validTeams : [...teamValues];
+        pendingFilters.team = pendingFilters.team.filter(t => teamValues.includes(t));
     }
 
     Object.keys(filterOptions).forEach(key => {
@@ -2113,9 +2193,11 @@ function setFilterSelection(key, mode) {
         autoSelectTeams: key === 'practice' && mode === 'all',
         allowEmptyTeams: key === 'team' && mode === 'none'
     });
+    persistFilterState();
 }
 
 function clearFilters() {
+    clearPersistedFilterState();
     resetFilterSelections(true);
     renderAllFilterChecklists();
     if (defaultDateRange.min && defaultDateRange.max) {
@@ -2128,19 +2210,13 @@ async function applyFilters() {
     if (filtersBusy) return;
     filtersBusy = true;
     syncPendingFromCheckboxes();
-    activeFilters = {
-        practice: [...pendingFilters.practice],
-        team: [...pendingFilters.team],
-        location: [...pendingFilters.location],
-        access: [...pendingFilters.access],
-        designation: [...pendingFilters.designation],
-        product: [...pendingFilters.product]
-    };
+    activeFilters = cloneFilterMap(pendingFilters);
 
     setLoading(true);
     showDashboardError("");
     try {
         await reloadDashboardData();
+        persistFilterState();
     } catch (err) {
         console.error(err);
         showDashboardError("Failed to load data: " + (err.message || err));
@@ -3074,10 +3150,11 @@ document.querySelector('.filter-section').addEventListener('change', (e) => {
     if (!cb) return;
     syncPendingFromCheckboxes();
     if (cb.dataset.filter === 'practice') {
-        renderAllFilterChecklists({ autoSelectTeams: true });
+        renderAllFilterChecklists();
     } else {
         updateFilterCount(cb.dataset.filter, filterOptions[cb.dataset.filter], pendingFilters[cb.dataset.filter]);
     }
+    persistFilterState();
 });
 
 document.getElementById('filter-start-date').addEventListener('change', () => {
@@ -3086,6 +3163,7 @@ document.getElementById('filter-start-date').addEventListener('change', () => {
     if (start && end && start > end) {
         document.getElementById('filter-end-date').value = start;
     }
+    persistFilterState();
 });
 document.getElementById('filter-end-date').addEventListener('change', () => {
     const start = document.getElementById('filter-start-date').value;
@@ -3093,6 +3171,7 @@ document.getElementById('filter-end-date').addEventListener('change', () => {
     if (start && end && end < start) {
         document.getElementById('filter-start-date').value = end;
     }
+    persistFilterState();
 });
 
 // ── INIT ────────────────────────────────────────────────────
