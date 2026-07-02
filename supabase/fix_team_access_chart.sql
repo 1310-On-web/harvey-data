@@ -1,8 +1,10 @@
--- Fix Team Access Coverage chart data and sort order.
--- Run in Supabase SQL Editor after limit_2000_top_users.sql (if applied).
-
-GRANT EXECUTE ON FUNCTION refresh_dashboard_cache() TO authenticated;
-
--- Re-run the full get_adoption_bundle block from supabase/master_data_adoption.sql first,
--- then refresh the cached adoption bundle:
-SELECT refresh_dashboard_cache();
+-- Fix: refresh_dashboard_cache() fails in SQL Editor with "Authentication required".
+--
+-- STEP 1 — Run the full updated supabase/master_data_adoption.sql first
+--         (creates _build_adoption_bundle and updates get_adoption_bundle).
+--
+-- STEP 2 — Run supabase/fix_refresh_cache_auth.sql
+--         (updates refresh_dashboard_cache to call _build_adoption_bundle).
+--
+-- Or after step 1, you can simply run:
+--   SELECT refresh_dashboard_cache();

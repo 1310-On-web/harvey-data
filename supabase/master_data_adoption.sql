@@ -17,9 +17,9 @@ CREATE INDEX IF NOT EXISTS idx_hr_practice ON hr_employees (practice_function);
 
 ALTER TABLE dashboard_cache ADD COLUMN IF NOT EXISTS adoption_bundle JSONB;
 
--- ── get_adoption_bundle ───────────────────────────────────────────────────────
+-- ── _build_adoption_bundle (internal; no auth — used by cache refresh) ────────
 
-CREATE OR REPLACE FUNCTION get_adoption_bundle(
+CREATE OR REPLACE FUNCTION _build_adoption_bundle(
     p_practices TEXT[] DEFAULT NULL,
     p_teams TEXT[] DEFAULT NULL,
     p_locations TEXT[] DEFAULT NULL,
@@ -34,19 +34,7 @@ SET search_path = public
 AS $$
 DECLARE
     result JSON;
-    cached JSON;
 BEGIN
-    PERFORM require_authenticated();
-
-    IF (p_practices IS NULL OR cardinality(p_practices) = 0)
-       AND (p_teams IS NULL OR cardinality(p_teams) = 0)
-       AND (p_locations IS NULL OR cardinality(p_locations) = 0)
-       AND (p_designations IS NULL OR cardinality(p_designations) = 0)
-       AND p_start_date IS NULL AND p_end_date IS NULL THEN
-        SELECT adoption_bundle INTO cached FROM dashboard_cache WHERE id = 1;
-        IF cached IS NOT NULL THEN RETURN cached; END IF;
-    END IF;
-
     PERFORM set_config('statement_timeout', '120000', true);
 
     WITH hr_filtered AS (
@@ -261,6 +249,41 @@ BEGIN
     ) INTO result;
 
     RETURN result;
+END;
+$$;
+
+-- ── get_adoption_bundle ───────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION get_adoption_bundle(
+    p_practices TEXT[] DEFAULT NULL,
+    p_teams TEXT[] DEFAULT NULL,
+    p_locations TEXT[] DEFAULT NULL,
+    p_designations TEXT[] DEFAULT NULL,
+    p_start_date DATE DEFAULT NULL,
+    p_end_date DATE DEFAULT NULL
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    cached JSON;
+BEGIN
+    PERFORM require_authenticated();
+
+    IF (p_practices IS NULL OR cardinality(p_practices) = 0)
+       AND (p_teams IS NULL OR cardinality(p_teams) = 0)
+       AND (p_locations IS NULL OR cardinality(p_locations) = 0)
+       AND (p_designations IS NULL OR cardinality(p_designations) = 0)
+       AND p_start_date IS NULL AND p_end_date IS NULL THEN
+        SELECT adoption_bundle INTO cached FROM dashboard_cache WHERE id = 1;
+        IF cached IS NOT NULL THEN RETURN cached; END IF;
+    END IF;
+
+    RETURN _build_adoption_bundle(
+        p_practices, p_teams, p_locations, p_designations, p_start_date, p_end_date
+    );
 END;
 $$;
 
@@ -484,7 +507,7 @@ BEGIN
         ) t
     ), '[]'::json) INTO v_tops;
 
-    v_adoption := get_adoption_bundle(NULL, NULL, NULL, NULL, NULL, NULL);
+    v_adoption := _build_adoption_bundle(NULL, NULL, NULL, NULL, NULL, NULL);
 
     UPDATE dashboard_cache SET
         filter_options = v_opts,
