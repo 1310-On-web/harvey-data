@@ -741,7 +741,11 @@
         .charts-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 24px;
+            gap: 32px;
+        }
+
+        .charts-grid.adoption-charts {
+            gap: 36px 32px;
         }
 
         .span-2 {
@@ -823,6 +827,12 @@
             flex: 1;
             position: relative;
             min-height: 300px;
+            padding: 12px 10px 16px;
+        }
+
+        .adoption-charts .chart-body {
+            min-height: 360px;
+            padding: 16px 12px 20px;
         }
 
         .table-wrapper {
@@ -1541,7 +1551,7 @@
             </div>
         </section>
 
-        <section class="charts-grid">
+        <section class="charts-grid adoption-charts">
             <div class="chart-card glass-panel">
                 <div class="chart-header">
                     <div>
@@ -2387,7 +2397,12 @@ function pctBarChart(id, items, horizontal) {
     const minVal = displayItems.length
         ? Math.min(...displayItems.map(i => Number(i.value) || 0))
         : 0;
-    charts[id] = new Chart(document.getElementById(id), {
+    const canvas = document.getElementById(id);
+    const body = canvas?.closest('.chart-body');
+    if (horizontal && body) {
+        body.style.minHeight = `${Math.max(360, displayItems.length * 30 + 80)}px`;
+    }
+    charts[id] = new Chart(canvas, {
         type: 'bar',
         data: {
             labels: displayItems.map(i => i.label),
@@ -2404,6 +2419,11 @@ function pctBarChart(id, items, horizontal) {
             responsive: true,
             maintainAspectRatio: false,
             indexAxis: horizontal ? 'y' : 'x',
+            layout: {
+                padding: horizontal
+                    ? { top: 12, right: 20, bottom: 12, left: 8 }
+                    : { top: 8, right: 12, bottom: 8, left: 8 }
+            },
             plugins: {
                 legend: { display: false },
                 datalabels: {
@@ -2417,7 +2437,7 @@ function pctBarChart(id, items, horizontal) {
             },
             scales: {
                 x: { max: horizontal ? undefined : 100, beginAtZero: true },
-                y: { max: horizontal ? 100 : undefined, beginAtZero: true, reverse: !!horizontal }
+                y: { max: horizontal ? 100 : undefined, beginAtZero: true }
             }
         }
     });
